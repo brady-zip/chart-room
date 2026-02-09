@@ -1,4 +1,6 @@
+import * as path from "path";
 import { Command } from "commander";
+import { addToCache } from "../lib/cache.js";
 import { readDashboard, writeDashboard } from "../lib/dashboard.js";
 import { createDashboard, dashboardUrl } from "../lib/datadog.js";
 export const initCommand = new Command()
@@ -42,6 +44,12 @@ export const initCommand = new Command()
         console.log(`[PROD] Already linked: ${dashboardUrl(dashboard.zip_dashboard_id)}`);
     }
     writeDashboard(filePath, dashboard);
+    addToCache({
+        path: path.resolve(filePath),
+        title: dashboard.title,
+        prodId: dashboard.zip_dashboard_id,
+        testId: dashboard.zip_test_dashboard_id,
+    });
     console.log("\n" + "=".repeat(60));
     if (created.length > 0) {
         console.log("Created dashboards:");

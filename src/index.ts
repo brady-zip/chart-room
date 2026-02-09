@@ -2,8 +2,10 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { Command } from "commander";
+import { completionCommand } from "./commands/completion.js";
 import { initCommand } from "./commands/init.js";
 import { linkCommand } from "./commands/link.js";
+import { scanCommand } from "./commands/scan.js";
 import { statusCommand } from "./commands/status.js";
 import { testCommand } from "./commands/test.js";
 
@@ -19,8 +21,10 @@ program
   .description("CLI tool for managing Datadog dashboard sync")
   .version(pkg.version);
 
+program.addCommand(completionCommand);
 program.addCommand(initCommand);
 program.addCommand(linkCommand);
+program.addCommand(scanCommand);
 program.addCommand(statusCommand);
 program.addCommand(testCommand);
 
