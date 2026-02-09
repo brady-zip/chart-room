@@ -2,6 +2,9 @@
   "name": "chart-room",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "chart-room": "./bin/chart-room"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
