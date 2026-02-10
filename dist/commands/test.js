@@ -24,39 +24,22 @@ This is a **test dashboard** for local development. Changes here are temporary.
 }
 function addTestBanner(dashboard, prodUrl) {
     const banner = createTestBannerWidget(prodUrl);
+    const bannerHeight = 2;
     // Filter out any existing test banner from widgets
     const existingWidgets = (dashboard.widgets ?? []).filter((w) => {
         const content = String(w.definition?.content ?? "");
         return !content.includes("TEST DASHBOARD");
     });
-    if (dashboard.layout_type === "free") {
-        // For free layout, position banner at top and shift others down
-        banner.layout = { x: 0, y: 0, width: 12, height: 2 };
-        const shiftedWidgets = existingWidgets.map((w) => ({
-            ...w,
-            layout: w.layout ? { ...w.layout, y: (w.layout.y ?? 0) + 2 } : w.layout,
-        }));
-        return { ...dashboard, widgets: [banner, ...shiftedWidgets] };
-    }
-    // For ordered layout, inject banner into first group if exists
-    const firstWidget = existingWidgets[0];
-    if (firstWidget?.definition?.type === "group" &&
-        Array.isArray(firstWidget.definition.widgets)) {
-        // Inject banner at start of existing group
-        const modifiedGroup = {
-            ...firstWidget,
-            definition: {
-                ...firstWidget.definition,
-                widgets: [banner, ...firstWidget.definition.widgets],
-            },
-        };
-        return {
-            ...dashboard,
-            widgets: [modifiedGroup, ...existingWidgets.slice(1)],
-        };
-    }
-    // No group found, just prepend banner
-    return { ...dashboard, widgets: [banner, ...existingWidgets] };
+    // Position banner at top with full width
+    banner.layout = { x: 0, y: 0, width: 12, height: bannerHeight };
+    // Shift all existing widgets down by banner height
+    const shiftedWidgets = existingWidgets.map((w) => ({
+        ...w,
+        layout: w.layout
+            ? { ...w.layout, y: (w.layout.y ?? 0) + bannerHeight }
+            : { x: 0, y: bannerHeight, width: 12, height: 2 },
+    }));
+    return { ...dashboard, widgets: [banner, ...shiftedWidgets] };
 }
 export const testCommand = new Command()
     .name("test")
