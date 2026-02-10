@@ -33,12 +33,15 @@ function addTestBanner(dashboard, prodUrl) {
     // Position banner at top with full width
     banner.layout = { x: 0, y: 0, width: 12, height: bannerHeight };
     // Shift all existing widgets down by banner height
-    const shiftedWidgets = existingWidgets.map((w) => ({
-        ...w,
-        layout: w.layout
-            ? { ...w.layout, y: (w.layout.y ?? 0) + bannerHeight }
-            : { x: 0, y: bannerHeight, width: 12, height: 2 },
-    }));
+    // Only modify widgets that have explicit layouts; leave others to flow naturally
+    const shiftedWidgets = existingWidgets.map((w) => {
+        if (!w.layout)
+            return w;
+        return {
+            ...w,
+            layout: { ...w.layout, y: (w.layout.y ?? 0) + bannerHeight },
+        };
+    });
     return { ...dashboard, widgets: [banner, ...shiftedWidgets] };
 }
 export const testCommand = new Command()
