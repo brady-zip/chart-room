@@ -1,17 +1,47 @@
+import * as fs from "fs";
 import * as path from "path";
 import { Command } from "commander";
 import { addToCache } from "../lib/cache.js";
 import { readDashboard, writeDashboard } from "../lib/dashboard.js";
 import { createDashboard, dashboardUrl } from "../lib/datadog.js";
+import type { DashboardDefinition } from "../types.js";
+
+function titleFromFilename(filePath: string): string {
+  const basename = path.basename(filePath, ".dash.json");
+  return basename
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function createDefaultDashboard(filePath: string): DashboardDefinition {
+  return {
+    title: titleFromFilename(filePath),
+    description: "",
+    layout_type: "ordered",
+    widgets: [],
+  };
+}
 
 export const initCommand = new Command()
   .name("init")
   .description("Create [TEST] and prod dashboards in Datadog")
-  .argument("<file>", "Path to dashboard JSON file")
+  .argument("<file>", "Path to dashboard JSON file (created if missing)")
   .action(async (filePath: string) => {
-    console.log(`Initializing dashboard from: ${filePath}`);
+    const absolutePath = path.resolve(filePath);
+    const fileExists = fs.existsSync(absolutePath);
 
-    const dashboard = readDashboard(filePath);
+    let dashboard: DashboardDefinition;
+    if (fileExists) {
+      console.log(`Initializing dashboard from: ${filePath}`);
+      dashboard = readDashboard(filePath);
+    } else {
+      console.log(`Creating new dashboard: ${filePath}`);
+      dashboard = createDefaultDashboard(filePath);
+      const dir = path.dirname(absolutePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    }
     const hasProd = Boolean(dashboard.zip_dashboard_id);
     const hasTest = Boolean(dashboard.zip_test_dashboard_id);
 
