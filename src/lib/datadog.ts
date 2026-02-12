@@ -41,38 +41,61 @@ function runDogCommand(cmd: string): string {
   }
 }
 
+function parseCreateResponse(
+  output: string,
+  title: string,
+): DatadogCreateResponse {
+  const lines = output.trim().split("\n");
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line) as { id?: string; title?: string };
+      if (parsed.id) {
+        return {
+          id: parsed.id,
+          title: parsed.title ?? title,
+          url: dashboardUrl(parsed.id),
+        };
+      }
+    } catch {
+      // Not JSON, continue
+    }
+  }
+
+  const idMatch = output.match(/"id":\s*"([^"]+)"/);
+  if (idMatch?.[1]) {
+    return { id: idMatch[1], title, url: dashboardUrl(idMatch[1]) };
+  }
+
+  throw new Error(`Could not parse dashboard ID from response: ${output}`);
+}
+
 export function createDashboard(
   title: string,
   layoutType: string,
   widgets: unknown[],
+  options?: { description?: string; template_variables?: unknown[] },
 ): DatadogCreateResponse {
   const widgetsFile = writeTempJson(widgets);
   try {
-    const cmd = `uvx --from datadog dogshell dashboard post "${title}" "$(cat ${widgetsFile})" "${layoutType}"`;
-    const output = runDogCommand(cmd);
+    let cmd = `uvx --from datadog dogshell dashboard post "${title}" "$(cat ${widgetsFile})" "${layoutType}"`;
 
-    const lines = output.trim().split("\n");
-    for (const line of lines) {
+    if (options?.description) {
+      cmd += ` --description "${options.description.replace(/"/g, '\\"')}"`;
+    }
+
+    if (options?.template_variables && options.template_variables.length > 0) {
+      const varsFile = writeTempJson(options.template_variables);
+      cmd += ` --template_variables "$(cat ${varsFile})"`;
       try {
-        const parsed = JSON.parse(line) as { id?: string; title?: string };
-        if (parsed.id) {
-          return {
-            id: parsed.id,
-            title: parsed.title ?? title,
-            url: dashboardUrl(parsed.id),
-          };
-        }
-      } catch {
-        // Not JSON, continue
+        const output = runDogCommand(cmd);
+        return parseCreateResponse(output, title);
+      } finally {
+        fs.unlinkSync(varsFile);
       }
     }
 
-    const idMatch = output.match(/"id":\s*"([^"]+)"/);
-    if (idMatch?.[1]) {
-      return { id: idMatch[1], title, url: dashboardUrl(idMatch[1]) };
-    }
-
-    throw new Error(`Could not parse dashboard ID from response: ${output}`);
+    const output = runDogCommand(cmd);
+    return parseCreateResponse(output, title);
   } finally {
     fs.unlinkSync(widgetsFile);
   }
@@ -84,7 +107,24 @@ export function updateDashboard(
 ): void {
   const widgetsFile = writeTempJson(dashboard.widgets);
   try {
-    const cmd = `cat ${widgetsFile} | uvx --from datadog dogshell dashboard update "${dashboardId}" "${dashboard.title}" "${dashboard.layout_type}"`;
+    let cmd = `cat ${widgetsFile} | uvx --from datadog dogshell dashboard update "${dashboardId}" "${dashboard.title}" "${dashboard.layout_type}"`;
+
+    if (dashboard.description) {
+      cmd += ` --description "${dashboard.description.replace(/"/g, '\\"')}"`;
+    }
+
+    const templateVars = dashboard.template_variables as unknown[] | undefined;
+    if (templateVars && templateVars.length > 0) {
+      const varsFile = writeTempJson(templateVars);
+      cmd += ` --template_variables "$(cat ${varsFile})"`;
+      try {
+        runDogCommand(cmd);
+      } finally {
+        fs.unlinkSync(varsFile);
+      }
+      return;
+    }
+
     runDogCommand(cmd);
   } finally {
     fs.unlinkSync(widgetsFile);
