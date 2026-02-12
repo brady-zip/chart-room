@@ -6,8 +6,9 @@ const DATADOG_BASE_URL = "https://app.datadoghq.com/dashboard";
 export function dashboardUrl(id) {
     return `${DATADOG_BASE_URL}/${id}`;
 }
+let tempFileCounter = 0;
 function writeTempJson(data) {
-    const tmpFile = path.join(os.tmpdir(), `dd-dash-${Date.now()}.json`);
+    const tmpFile = path.join(os.tmpdir(), `dd-dash-${Date.now()}-${tempFileCounter++}.json`);
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2) + "\n");
     return tmpFile;
 }

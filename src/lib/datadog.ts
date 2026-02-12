@@ -14,8 +14,12 @@ export function dashboardUrl(id: string): string {
   return `${DATADOG_BASE_URL}/${id}`;
 }
 
+let tempFileCounter = 0;
 function writeTempJson(data: unknown): string {
-  const tmpFile = path.join(os.tmpdir(), `dd-dash-${Date.now()}.json`);
+  const tmpFile = path.join(
+    os.tmpdir(),
+    `dd-dash-${Date.now()}-${tempFileCounter++}.json`,
+  );
   fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2) + "\n");
   return tmpFile;
 }
