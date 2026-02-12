@@ -82,6 +82,14 @@ export const testCommand = new Command()
     processed.title = `[TEST] ${dashboard.title}`;
 
     const withBanner = addTestBanner(processed, prodUrl);
+
+    // Debug: dump payload to see what we're sending
+    if (process.env.DEBUG) {
+      console.log("\n=== DEBUG: Payload being sent ===");
+      console.log(JSON.stringify(withBanner, null, 2));
+      console.log("=================================\n");
+    }
+
     updateDashboard(testId, withBanner);
 
     const uploadedAt = new Date().toISOString();
