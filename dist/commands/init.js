@@ -50,10 +50,14 @@ export const initCommand = new Command()
     const { $schema: _, zip_dashboard_id: _pid, zip_test_dashboard_id: _tid, ...definition } = dashboard;
     const created = [];
     console.log("\nCreating missing dashboards in Datadog...\n");
+    const createOptions = {
+        description: definition.description,
+        template_variables: definition.template_variables,
+    };
     if (!hasTest) {
         const testTitle = `[TEST] ${dashboard.title}`;
         console.log(`Creating: ${testTitle}`);
-        const testDashboard = createDashboard(testTitle, dashboard.layout_type, definition.widgets);
+        const testDashboard = createDashboard(testTitle, dashboard.layout_type, definition.widgets, createOptions);
         dashboard.zip_test_dashboard_id = testDashboard.id;
         created.push(`  [TEST] ${testDashboard.url}`);
         console.log(`  Created: ${testDashboard.url}`);
@@ -63,7 +67,7 @@ export const initCommand = new Command()
     }
     if (!hasProd) {
         console.log(`Creating: ${dashboard.title}`);
-        const prodDashboard = createDashboard(dashboard.title, dashboard.layout_type, definition.widgets);
+        const prodDashboard = createDashboard(dashboard.title, dashboard.layout_type, definition.widgets, createOptions);
         dashboard.zip_dashboard_id = prodDashboard.id;
         created.push(`  [PROD] ${prodDashboard.url}`);
         console.log(`  Created: ${prodDashboard.url}`);
