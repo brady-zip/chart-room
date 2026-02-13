@@ -7,7 +7,7 @@ const BASH_SCRIPT = `# chart-room bash completion
 _chart_room_completions() {
   local cur="\${COMP_WORDS[COMP_CWORD]}"
   local prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  local commands="comment completion init link scan status test"
+  local commands="comment completion init link prod scan status test"
 
   if [[ \${COMP_CWORD} -eq 1 ]]; then
     COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
@@ -19,7 +19,7 @@ _chart_room_completions() {
       COMPREPLY=($(compgen -W "bash zsh fish" -- "\${cur}"))
       return
       ;;
-    comment|init|link|status|test)
+    comment|init|link|prod|status|test)
       local cache_file="CACHE_PATH"
       if [[ -f "\${cache_file}" ]] && command -v jq &>/dev/null; then
         local paths=$(jq -r '.entries[].path' "\${cache_file}" 2>/dev/null)
@@ -46,6 +46,7 @@ _chart_room() {
     'completion:Output shell completion script'
     'init:Create [TEST] and prod dashboards in Datadog'
     'link:Link a dashboard file to existing Datadog dashboard'
+    'prod:Upload dashboard to production environment'
     'scan:Scan project for dashboard files and update cache'
     'status:Show dashboard sync status'
     'test:Upload dashboard to [TEST] environment'
@@ -66,7 +67,7 @@ _chart_room() {
         completion)
           _values 'shell' $shells
           ;;
-        comment|init|link|status|test)
+        comment|init|link|prod|status|test)
           local cache_file="CACHE_PATH"
           if [[ -f "\${cache_file}" ]] && (( $+commands[jq] )); then
             local -a paths
@@ -90,7 +91,7 @@ compdef _chart_room chart-room
 const FISH_SCRIPT = `# chart-room fish completion
 # Add to ~/.config/fish/completions/chart-room.fish
 
-set -l commands comment completion init link scan status test
+set -l commands comment completion init link prod scan status test
 set -l shells bash zsh fish
 
 complete -c chart-room -f
@@ -101,6 +102,8 @@ complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
   -a init -d 'Create [TEST] and prod dashboards in Datadog'
 complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
   -a link -d 'Link a dashboard file to existing Datadog dashboard'
+complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
+  -a prod -d 'Upload dashboard to production environment'
 complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
   -a status -d 'Show dashboard sync status'
 complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
@@ -121,7 +124,7 @@ function __chart_room_dash_files
   end
 end
 
-complete -c chart-room -n "__fish_seen_subcommand_from comment init link status test" \\
+complete -c chart-room -n "__fish_seen_subcommand_from comment init link prod status test" \\
   -a "(__chart_room_dash_files)"
 `;
 
