@@ -1,2 +1,3 @@
+npx tsx scripts/check-completions.ts
 npx lint-staged
 npm run typecheck
