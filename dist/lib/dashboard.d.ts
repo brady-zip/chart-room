@@ -4,3 +4,4 @@ export declare function writeDashboard(filePath: string, dashboard: DashboardDef
 export declare function isSourceWidget(widget: WidgetEntry): boolean;
 export declare function isSourceWidgetDeep(widget: Record<string, unknown>): boolean;
 export declare function preprocessForUpload(dashboard: DashboardDefinition, filePath: string): DashboardDefinition;
+export declare function addTestBanner(dashboard: DashboardDefinition, prodUrl: string): DashboardDefinition;

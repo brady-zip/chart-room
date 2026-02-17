@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { Command } from "commander";
 import { addToCache } from "../lib/cache.js";
-import { readDashboard, writeDashboard } from "../lib/dashboard.js";
+import { addTestBanner, readDashboard, writeDashboard, } from "../lib/dashboard.js";
 import { createDashboard, dashboardUrl } from "../lib/datadog.js";
 function titleFromFilename(filePath) {
     const basename = path.basename(filePath, ".dash.json");
@@ -54,17 +54,7 @@ export const initCommand = new Command()
         description: definition.description,
         template_variables: definition.template_variables,
     };
-    if (!hasTest) {
-        const testTitle = `[TEST] ${dashboard.title}`;
-        console.log(`Creating: ${testTitle}`);
-        const testDashboard = createDashboard(testTitle, dashboard.layout_type, definition.widgets, createOptions);
-        dashboard.zip_test_dashboard_id = testDashboard.id;
-        created.push(`  [TEST] ${testDashboard.url}`);
-        console.log(`  Created: ${testDashboard.url}`);
-    }
-    else {
-        console.log(`[TEST] Already linked: ${dashboardUrl(dashboard.zip_test_dashboard_id)}`);
-    }
+    // Create prod first so we have the URL for the test banner
     if (!hasProd) {
         console.log(`Creating: ${dashboard.title}`);
         const prodDashboard = createDashboard(dashboard.title, dashboard.layout_type, definition.widgets, createOptions);
@@ -74,6 +64,20 @@ export const initCommand = new Command()
     }
     else {
         console.log(`[PROD] Already linked: ${dashboardUrl(dashboard.zip_dashboard_id)}`);
+    }
+    // Create test dashboard with banner pointing to prod
+    if (!hasTest) {
+        const testTitle = `[TEST] ${dashboard.title}`;
+        const prodUrl = dashboardUrl(dashboard.zip_dashboard_id);
+        const withBanner = addTestBanner({ ...definition, title: testTitle }, prodUrl);
+        console.log(`Creating: ${testTitle}`);
+        const testDashboard = createDashboard(testTitle, dashboard.layout_type, withBanner.widgets, createOptions);
+        dashboard.zip_test_dashboard_id = testDashboard.id;
+        created.push(`  [TEST] ${testDashboard.url}`);
+        console.log(`  Created: ${testDashboard.url}`);
+    }
+    else {
+        console.log(`[TEST] Already linked: ${dashboardUrl(dashboard.zip_test_dashboard_id)}`);
     }
     writeDashboard(filePath, dashboard);
     addToCache({
