@@ -12,6 +12,11 @@ function titleFromFilename(filePath) {
 }
 function createDefaultDashboard(filePath) {
     return {
+        _meta: {
+            intent: "{describe the purpose of this dashboard}",
+            audience: "{describe the intended audience}",
+            scope: "{describe what systems/services this covers}",
+        },
         title: titleFromFilename(filePath),
         description: "",
         layout_type: "ordered",

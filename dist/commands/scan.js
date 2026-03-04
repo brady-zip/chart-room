@@ -1,5 +1,7 @@
+import * as path from "path";
 import { Command } from "commander";
 import { readCache, writeCache, scanDashboards, } from "../lib/cache.js";
+import { dashboardUrl } from "../lib/datadog.js";
 export const scanCommand = new Command()
     .name("scan")
     .description("Scan project for dashboard files and update cache")
@@ -27,12 +29,13 @@ export const scanCommand = new Command()
     else {
         console.log(`Found ${found.length} dashboard(s):\n`);
         for (const d of found) {
-            console.log(`  ${d.path}`);
+            const rel = path.relative(cwd, d.path);
+            console.log(`  ${rel}`);
             console.log(`    title: ${d.title}`);
             if (d.prodId)
-                console.log(`    prod:  ${d.prodId}`);
+                console.log(`    prod:  ${dashboardUrl(d.prodId)}`);
             if (d.testId)
-                console.log(`    test:  ${d.testId}`);
+                console.log(`    test:  ${dashboardUrl(d.testId)}`);
         }
         console.log(`\nCache updated at: ~/.config/chart-room/cache.json`);
     }
