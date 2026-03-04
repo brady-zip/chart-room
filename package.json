@@ -1,6 +1,6 @@
 {
   "name": "chart-room",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "type": "module",
   "scripts": {
     "build": "bun build src/index.ts --compile --outfile chart-room-darwin-arm64",
