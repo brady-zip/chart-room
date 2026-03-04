@@ -72,6 +72,6 @@ jq --arg v "$NEW_VERSION" '.version = $v' package.json > "$TMP" && mv "$TMP" pac
 # Commit the version bump
 git add package.json
 git commit -m "chore: bump to v$NEW_VERSION [skip-version]"
-git tag "v$NEW_VERSION"
+git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
 
 echo "auto-version: bumped $CURRENT_VERSION -> $NEW_VERSION ($BUMP_TYPE)"
