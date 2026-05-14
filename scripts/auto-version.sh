@@ -75,3 +75,10 @@ git commit -m "chore: bump to v$NEW_VERSION [skip-version]"
 git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
 
 echo "auto-version: bumped $CURRENT_VERSION -> $NEW_VERSION ($BUMP_TYPE)"
+
+# Push commits and the new annotated tag to the remote
+if git push --follow-tags; then
+  echo "auto-version: pushed v$NEW_VERSION to remote"
+else
+  echo "auto-version: push failed — push manually with 'git push --follow-tags'" >&2
+fi
