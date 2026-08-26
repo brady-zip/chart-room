@@ -1,6 +1,31 @@
 import * as fs from "fs";
 import * as path from "path";
+import { parseJsonc } from "./jsonc.js";
+import {
+  GENERATED_COMMENT_LINE,
+  LEGACY_GENERATED_COMMENT_KEY,
+} from "./meta.js";
 import type { DashboardDefinition, WidgetEntry } from "../types.js";
+
+/** Canonical extension for dashboard configs. The contents are JSONC. */
+export const DASHBOARD_EXTENSION = ".dash.jsonc";
+
+/**
+ * Extensions picked up when discovering configs. `.dash.json` is still
+ * recognized so files created before the switch to `.dash.jsonc` keep working.
+ */
+export const DASHBOARD_EXTENSIONS = [DASHBOARD_EXTENSION, ".dash.json"];
+
+export function isDashboardFile(fileName: string): boolean {
+  return DASHBOARD_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+}
+
+/** Strips whichever dashboard extension the file uses. */
+export function dashboardBasename(filePath: string): string {
+  const fileName = path.basename(filePath);
+  const ext = DASHBOARD_EXTENSIONS.find((e) => fileName.endsWith(e));
+  return ext ? fileName.slice(0, -ext.length) : path.parse(fileName).name;
+}
 
 export function readDashboard(filePath: string): DashboardDefinition {
   const absolutePath = path.resolve(filePath);
@@ -8,15 +33,23 @@ export function readDashboard(filePath: string): DashboardDefinition {
     throw new Error(`File not found: ${absolutePath}`);
   }
   const content = fs.readFileSync(absolutePath, "utf-8");
-  return JSON.parse(content) as DashboardDefinition;
+  const { [LEGACY_GENERATED_COMMENT_KEY]: _legacy, ...dashboard } =
+    parseJsonc<DashboardDefinition>(content);
+  return dashboard as DashboardDefinition;
 }
 
+/**
+ * Writes the config as JSONC: the "generated with chart-room" note goes above
+ * the object as a `//` comment. Comments elsewhere in the file are not
+ * preserved across a write.
+ */
 export function writeDashboard(
   filePath: string,
   dashboard: DashboardDefinition,
 ): void {
   const absolutePath = path.resolve(filePath);
-  fs.writeFileSync(absolutePath, JSON.stringify(dashboard, null, 2) + "\n");
+  const body = JSON.stringify(dashboard, null, 2);
+  fs.writeFileSync(absolutePath, `${GENERATED_COMMENT_LINE}\n${body}\n`);
 }
 
 export function isSourceWidget(widget: WidgetEntry): boolean {

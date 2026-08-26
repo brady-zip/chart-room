@@ -4,8 +4,8 @@ import { join } from "path";
 import { $ } from "bun";
 import pkg from "../../package.json" with { type: "json" };
 import { getLastCheckTime, readConfig, setLastCheckTime } from "./config.js";
+import { REPO } from "./meta.js";
 
-const REPO = "brady-zip/chart-room";
 const ASSET = "chart-room-darwin-arm64";
 const ONE_HOUR = 60 * 60 * 1000;
 

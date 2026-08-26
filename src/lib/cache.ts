@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { homedir } from "os";
+import { isDashboardFile } from "./dashboard.js";
+import { parseJsonc } from "./jsonc.js";
 
 export interface CacheEntry {
   path: string;
@@ -83,7 +85,7 @@ function walkDir(dir: string, results: string[]): void {
       if (!SKIP_DIRS.has(entry.name)) {
         walkDir(path.join(dir, entry.name), results);
       }
-    } else if (entry.isFile() && entry.name.endsWith(".dash.json")) {
+    } else if (entry.isFile() && isDashboardFile(entry.name)) {
       results.push(path.join(dir, entry.name));
     }
   }
@@ -105,11 +107,11 @@ export function scanDashboards(cwd: string): ScannedDashboard[] {
 
   return files.map((filePath) => {
     const content = fs.readFileSync(filePath, "utf-8");
-    const dashboard = JSON.parse(content) as {
+    const dashboard = parseJsonc<{
       title?: string;
       zip_dashboard_id?: string;
       zip_test_dashboard_id?: string;
-    };
+    }>(content);
     return {
       path: filePath,
       title: dashboard.title ?? path.basename(filePath),

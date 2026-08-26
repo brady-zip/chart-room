@@ -1,6 +1,6 @@
 # chart-room
 
-CLI for managing Datadog dashboards as code. Each dashboard is a `*.dash.json` file in your repo, paired with two Datadog dashboards: a `[TEST]` copy you push to from PR branches, and a prod copy that syncs on merge to `main`.
+CLI for managing Datadog dashboards as code. Each dashboard is a `*.dash.jsonc` file in your repo, paired with two Datadog dashboards: a `[TEST]` copy you push to from PR branches, and a prod copy that syncs on merge to `main`.
 
 ## Workflow
 
@@ -52,16 +52,16 @@ pinned_version = ""    # e.g. "1.7.0" to pin; empty for latest
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `init <file>` | Create paired `[TEST]` and prod dashboards. Creates the file from a template if it doesn't exist. |
-| `link [--test] <file> <id>` | Link an existing Datadog dashboard ID to a local file. |
-| `test <file>` | Upload local definition to the `[TEST]` dashboard (auto-injects a banner linking to prod). |
-| `prod <file>` | Upload local definition to the prod dashboard. |
-| `status <file>` | Show linked IDs, validate they exist in Datadog, and diff local vs. prod. |
-| `comment <file>` | Add a `[TEST]` dashboard link as a comment on the current branch's PR. |
-| `scan` | Walk the repo for `*.dash.json` files and refresh the local cache (powers shell completion). |
-| `completion <bash\|zsh\|fish>` | Print a shell completion script. |
+| Command                        | Description                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `init <file>`                  | Create paired `[TEST]` and prod dashboards. Creates the file from a template if it doesn't exist. |
+| `link [--test] <file> <id>`    | Link an existing Datadog dashboard ID to a local file.                                            |
+| `test <file>`                  | Upload local definition to the `[TEST]` dashboard (auto-injects a banner linking to prod).        |
+| `prod <file>`                  | Upload local definition to the prod dashboard.                                                    |
+| `status <file>`                | Show linked IDs, validate they exist in Datadog, and diff local vs. prod.                         |
+| `comment <file>`               | Add a `[TEST]` dashboard link as a comment on the current branch's PR.                            |
+| `scan`                         | Walk the repo for `*.dash.jsonc` files and refresh the local cache (powers shell completion).     |
+| `completion <bash\|zsh\|fish>` | Print a shell completion script.                                                                  |
 
 ## Shell completion
 
@@ -80,25 +80,30 @@ Completion uses the cache populated by `scan` to suggest dashboard file paths.
 
 ## Dashboard file format
 
-A `*.dash.json` file is a Datadog dashboard JSON payload with a few extra fields:
+A `*.dash.jsonc` file is a Datadog dashboard JSON payload with a few extra fields. Files are JSONC, so comments and trailing commas are allowed:
 
-```json
+```jsonc
+// Generated with chart-room. Install it with: curl -fsSL .../install.sh | bash — see https://github.com/brady-zip/chart-room for more details.
 {
   "_meta": {
     "intent": "...",
     "audience": "...",
-    "scope": "..."
+    "scope": "...",
   },
   "zip_dashboard_id": "abc-123-prod",
   "zip_test_dashboard_id": "abc-123-test",
   "title": "My Dashboard",
   "description": "",
   "layout_type": "ordered",
-  "widgets": []
+  "widgets": [],
 }
 ```
 
 The `zip_*` IDs are managed by `init` / `link`. `_meta` is for humans only and ignored by Datadog.
+
+The leading `//` comment is stamped on every file chart-room writes, so anyone who stumbles onto the file knows what produced it and how to install the tool. You can add your own comments anywhere in the file, but note that `init` and `link` rewrite the file and only the generated header comment survives that rewrite.
+
+Files created before the switch to `.dash.jsonc` still work: `scan` and shell completion pick up `*.dash.json` too, and any path passed explicitly is read regardless of its extension. Rename them at your leisure.
 
 ## Building from source
 

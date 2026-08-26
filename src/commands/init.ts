@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { addToCache } from "../lib/cache.js";
 import {
   addTestBanner,
+  dashboardBasename,
   readDashboard,
   writeDashboard,
 } from "../lib/dashboard.js";
@@ -11,8 +12,7 @@ import { createDashboard, dashboardUrl } from "../lib/datadog.js";
 import type { DashboardDefinition } from "../types.js";
 
 function titleFromFilename(filePath: string): string {
-  const basename = path.basename(filePath, ".dash.json");
-  return basename
+  return dashboardBasename(filePath)
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }

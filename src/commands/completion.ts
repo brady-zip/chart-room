@@ -25,7 +25,7 @@ _chart_room_completions() {
         local paths=$(jq -r '.entries[].path' "\${cache_file}" 2>/dev/null)
         COMPREPLY=($(compgen -W "\${paths}" -- "\${cur}"))
       else
-        COMPREPLY=($(compgen -f -X '!*.dash.json' -- "\${cur}"))
+        COMPREPLY=($(compgen -f -X '!*.dash.jsonc' -- "\${cur}") $(compgen -f -X '!*.dash.json' -- "\${cur}"))
       fi
       return
       ;;
@@ -74,7 +74,7 @@ _chart_room() {
             paths=(\${(f)"$(jq -r '.entries[].path' "\${cache_file}" 2>/dev/null)"})
             _values 'dashboard' $paths
           else
-            _files -g '*.dash.json'
+            _files -g '*.dash.(jsonc|json)'
           fi
           ;;
         *)
@@ -120,7 +120,9 @@ function __chart_room_dash_files
   if test -f "$cache_file"; and type -q jq
     jq -r '.entries[].path' "$cache_file" 2>/dev/null
   else
-    printf '%s\\n' *.dash.json **/*.dash.json 2>/dev/null
+    find . '(' -name node_modules -o -name .git ')' -prune -o \\
+      '(' -name '*.dash.jsonc' -o -name '*.dash.json' ')' -print 2>/dev/null |
+      string replace -r '^\\./' ''
   end
 end
 
