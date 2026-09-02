@@ -28,6 +28,9 @@ function createDefaultDashboard(filePath: string): DashboardDefinition {
     description: "",
     layout_type: "ordered",
     widgets: [],
+    // Required by the schema, so the file validates the moment it is created.
+    notify_list: [],
+    reflow_type: "fixed",
   };
 }
 

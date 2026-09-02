@@ -8,9 +8,11 @@ import { prodCommand } from "./commands/prod.js";
 import { scanCommand } from "./commands/scan.js";
 import { statusCommand } from "./commands/status.js";
 import { testCommand } from "./commands/test.js";
+import { ensureSchemaFile } from "./lib/schema.js";
 import { checkForUpdates } from "./lib/updater.js";
 
 await checkForUpdates();
+ensureSchemaFile();
 
 const program = new Command();
 

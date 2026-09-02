@@ -1,0 +1,408 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/brady-zip/chart-room/main/schema/datadog-dashboard.schema.json",
+  "title": "Datadog Dashboard",
+  "type": "object",
+  "required": [
+    "title",
+    "description",
+    "widgets",
+    "layout_type",
+    "notify_list",
+    "reflow_type"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL of this schema. Stamped by chart-room on every write."
+    },
+    "_meta": {
+      "type": "object",
+      "description": "Human-only notes. Ignored by Datadog and stripped before upload. Values are free-form (a string or a list of strings).",
+      "properties": {
+        "intent": {
+          "description": "What this dashboard is for."
+        },
+        "audience": {
+          "description": "Who reads it."
+        },
+        "scope": {
+          "description": "What systems/services it covers."
+        }
+      },
+      "additionalProperties": true
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "widgets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/widget"
+      }
+    },
+    "template_variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/templateVariable"
+      }
+    },
+    "layout_type": {
+      "type": "string",
+      "enum": ["ordered", "free"]
+    },
+    "is_read_only": {
+      "type": "boolean"
+    },
+    "notify_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reflow_type": {
+      "type": "string",
+      "enum": ["fixed", "auto"]
+    },
+    "zip_dashboard_id": {
+      "type": "string",
+      "description": "Datadog dashboard ID for prod sync. Managed by chart-room init / link."
+    },
+    "zip_test_dashboard_id": {
+      "type": "string",
+      "description": "Datadog dashboard ID for test uploads. Managed by chart-room init / link."
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "widget": {
+      "type": "object",
+      "required": ["definition", "layout"],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "definition": {
+          "$ref": "#/definitions/widgetDefinition"
+        },
+        "layout": {
+          "$ref": "#/definitions/widgetLayout"
+        }
+      },
+      "additionalProperties": true
+    },
+    "widgetLayout": {
+      "type": "object",
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "widgetDefinition": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "title_size": {
+          "type": "string"
+        },
+        "title_align": {
+          "type": "string"
+        },
+        "show_legend": {
+          "type": "boolean"
+        },
+        "legend_layout": {
+          "type": "string"
+        },
+        "legend_columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/widgetRequest"
+          }
+        },
+        "autoscale": {
+          "type": "boolean"
+        },
+        "precision": {
+          "type": "integer"
+        },
+        "text_align": {
+          "type": "string"
+        },
+        "hide_total": {
+          "type": "boolean"
+        },
+        "legend": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "note"
+              }
+            }
+          },
+          "then": {
+            "required": ["content"]
+          },
+          "else": {
+            "required": ["title"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "timeseries"
+              }
+            }
+          },
+          "then": {
+            "required": ["requests"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "query_value"
+              }
+            }
+          },
+          "then": {
+            "required": ["requests"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "query_table"
+              }
+            }
+          },
+          "then": {
+            "required": ["requests"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "sunburst"
+              }
+            }
+          },
+          "then": {
+            "required": ["requests"]
+          }
+        }
+      ]
+    },
+    "widgetRequest": {
+      "type": "object",
+      "anyOf": [
+        {
+          "required": ["queries", "formulas"]
+        },
+        {
+          "required": ["columns", "query", "response_format"],
+          "properties": {
+            "response_format": {
+              "const": "event_list"
+            }
+          }
+        }
+      ],
+      "properties": {
+        "formulas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/formula"
+          }
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/query"
+          }
+        },
+        "response_format": {
+          "type": "string"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/listStreamColumn"
+          }
+        },
+        "query": {
+          "$ref": "#/definitions/listStreamQuery"
+        },
+        "conditional_formats": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/conditionalFormat"
+          }
+        },
+        "style": {
+          "$ref": "#/definitions/requestStyle"
+        },
+        "display_type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "listStreamColumn": {
+      "type": "object",
+      "required": ["field", "width"],
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "width": {
+          "type": "string",
+          "enum": ["auto", "compact", "full"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "listStreamQuery": {
+      "type": "object",
+      "required": ["data_source", "query_string"],
+      "properties": {
+        "data_source": {
+          "type": "string"
+        },
+        "query_string": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "query": {
+      "type": "object",
+      "required": ["name", "data_source"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "data_source": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string",
+          "description": "Query string for metrics/logs data sources. Event-analytics queries (data_source: events) omit this and use search/compute/group_by instead."
+        },
+        "aggregator": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "formula": {
+      "type": "object",
+      "required": ["formula"],
+      "properties": {
+        "formula": {
+          "type": "string"
+        },
+        "alias": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "conditionalFormat": {
+      "type": "object",
+      "required": ["comparator", "value", "palette"],
+      "properties": {
+        "comparator": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "palette": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "requestStyle": {
+      "type": "object",
+      "properties": {
+        "palette": {
+          "type": "string"
+        },
+        "line_type": {
+          "type": "string"
+        },
+        "line_width": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "templateVariable": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "default": {
+          "type": "string"
+        },
+        "available_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "description": "Schema for chart-room *.dash.jsonc dashboard configs: a Datadog dashboard payload plus the zip_* IDs chart-room manages. See https://github.com/brady-zip/chart-room"
+}

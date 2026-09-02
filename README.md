@@ -85,6 +85,10 @@ A `*.dash.jsonc` file is a Datadog dashboard JSON payload with a few extra field
 ```jsonc
 // Generated with chart-room. Install it with: curl -fsSL .../install.sh | bash — see https://github.com/brady-zip/chart-room for more details.
 {
+  // $schema resolves over the network — no local setup needed. Offline, or for
+  // validators like `ajv`, any chart-room run drops a copy at
+  // ~/.config/chart-room/datadog-dashboard.schema.json
+  "$schema": "https://raw.githubusercontent.com/brady-zip/chart-room/main/schema/datadog-dashboard.schema.json",
   "_meta": {
     "intent": "...",
     "audience": "...",
@@ -104,6 +108,20 @@ The `zip_*` IDs are managed by `init` / `link`. `_meta` is for humans only and i
 The leading `//` comment is stamped on every file chart-room writes, so anyone who stumbles onto the file knows what produced it and how to install the tool. You can add your own comments anywhere in the file, but note that `init` and `link` rewrite the file and only the generated header comment survives that rewrite.
 
 Files created before the switch to `.dash.jsonc` still work: `scan` and shell completion pick up `*.dash.json` too, and any path passed explicitly is read regardless of its extension. Rename them at your leisure.
+
+## Schema
+
+`schema/datadog-dashboard.schema.json` ships with chart-room. It is compiled into the binary, so consuming repos no longer need to commit a copy.
+
+Every file chart-room writes gets `$schema` stamped as the first key, pointing at the copy on `main` in this public repo. That one string is identical for every developer, so it commits cleanly and editors resolve it with no setup.
+
+Because the binary carries the schema, every run also drops it at `~/.config/chart-room/datadog-dashboard.schema.json`, rewriting it only when the contents differ — so deleting it heals on the next run, and upgrading chart-room brings the new schema with it. Use that path when you need a local file:
+
+```bash
+ajv validate -s ~/.config/chart-room/datadog-dashboard.schema.json -d "**/*.dash.jsonc"
+```
+
+Note that `ajv` cannot parse the JSONC comments chart-room writes. Strip them first, or point your validator at a JSONC-aware parser.
 
 ## Building from source
 

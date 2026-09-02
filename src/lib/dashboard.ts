@@ -4,6 +4,8 @@ import { parseJsonc } from "./jsonc.js";
 import {
   GENERATED_COMMENT_LINE,
   LEGACY_GENERATED_COMMENT_KEY,
+  SCHEMA_COMMENT_LINES,
+  SCHEMA_URL,
 } from "./meta.js";
 import type { DashboardDefinition, WidgetEntry } from "../types.js";
 
@@ -40,16 +42,24 @@ export function readDashboard(filePath: string): DashboardDefinition {
 
 /**
  * Writes the config as JSONC: the "generated with chart-room" note goes above
- * the object as a `//` comment. Comments elsewhere in the file are not
- * preserved across a write.
+ * the object as a `//` comment, and `$schema` is re-stamped as the first key
+ * with a note above it explaining where the schema comes from. Comments
+ * elsewhere in the file are not preserved across a write.
  */
 export function writeDashboard(
   filePath: string,
   dashboard: DashboardDefinition,
 ): void {
   const absolutePath = path.resolve(filePath);
-  const body = JSON.stringify(dashboard, null, 2);
-  fs.writeFileSync(absolutePath, `${GENERATED_COMMENT_LINE}\n${body}\n`);
+  const { $schema: _stale, ...rest } = dashboard;
+  const body = JSON.stringify({ $schema: SCHEMA_URL, ...rest }, null, 2);
+
+  // `$schema` is serialized first, so the note lands directly above it.
+  const [open, ...lines] = body.split("\n");
+  const indented = SCHEMA_COMMENT_LINES.map((line) => `  ${line}`);
+  const annotated = [open, ...indented, ...lines].join("\n");
+
+  fs.writeFileSync(absolutePath, `${GENERATED_COMMENT_LINE}\n${annotated}\n`);
 }
 
 export function isSourceWidget(widget: WidgetEntry): boolean {
