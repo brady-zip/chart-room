@@ -135,27 +135,7 @@
             "version": 0,
             "visConfig": {
               "visType": "omni-kpi",
-              "config": {
-                "alignment": "left",
-                "markdownConfig": [
-                  {
-                    "id": "acceptance-value",
-                    "type": "number",
-                    "config": {
-                      "field": {
-                        "field": {
-                          "manual": true,
-                          "name": "fivetran_db_github__pull_request.count",
-                          "pivotMap": {}
-                        },
-                        "label": {
-                          "value": "Pull requests"
-                        }
-                      }
-                    }
-                  }
-                ]
-              }
+              "config": {}
             }
           }
         },
