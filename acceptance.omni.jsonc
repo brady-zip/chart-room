@@ -88,7 +88,7 @@
                     },
                     "mark": {
                       "type": "line",
-                      "_mark_color": "#E66A19"
+                      "_mark_color": "#2F15C9"
                     },
                     "yAxis": "y"
                   }
@@ -195,12 +195,262 @@
               "config": {}
             }
           }
+        },
+        "4": {
+          "type": "blank",
+          "name": "Batch acceptance 4"
+        },
+        "5": {
+          "type": "blank",
+          "name": "Batch acceptance 5"
+        },
+        "6": {
+          "type": "blank",
+          "name": "Batch acceptance 6"
+        },
+        "7": {
+          "type": "blank",
+          "name": "Batch acceptance 7"
+        },
+        "8": {
+          "type": "blank",
+          "name": "Batch acceptance 8"
+        },
+        "9": {
+          "type": "blank",
+          "name": "Batch acceptance 9"
+        },
+        "10": {
+          "type": "blank",
+          "name": "Batch acceptance 10"
+        },
+        "11": {
+          "type": "blank",
+          "name": "Batch acceptance 11"
+        },
+        "12": {
+          "type": "blank",
+          "name": "Batch acceptance 12"
+        },
+        "13": {
+          "type": "blank",
+          "name": "Batch acceptance 13"
+        },
+        "14": {
+          "type": "blank",
+          "name": "Batch acceptance 14"
+        },
+        "15": {
+          "type": "blank",
+          "name": "Batch acceptance 15"
+        },
+        "16": {
+          "type": "blank",
+          "name": "Batch acceptance 16"
+        },
+        "17": {
+          "type": "blank",
+          "name": "Batch acceptance 17"
+        },
+        "18": {
+          "type": "blank",
+          "name": "Batch acceptance 18"
+        },
+        "19": {
+          "type": "blank",
+          "name": "Batch acceptance 19"
+        },
+        "20": {
+          "type": "blank",
+          "name": "Batch acceptance 20"
+        },
+        "21": {
+          "type": "blank",
+          "name": "Batch acceptance 21"
+        },
+        "22": {
+          "type": "blank",
+          "name": "Batch acceptance 22"
+        },
+        "23": {
+          "type": "blank",
+          "name": "Batch acceptance 23"
+        },
+        "24": {
+          "type": "blank",
+          "name": "Batch acceptance 24"
+        },
+        "25": {
+          "type": "blank",
+          "name": "Batch acceptance 25"
+        },
+        "26": {
+          "type": "blank",
+          "name": "Batch acceptance 26"
+        },
+        "27": {
+          "type": "blank",
+          "name": "Batch acceptance 27"
+        },
+        "28": {
+          "type": "blank",
+          "name": "Batch acceptance 28"
+        },
+        "29": {
+          "type": "blank",
+          "name": "Batch acceptance 29"
+        },
+        "30": {
+          "type": "blank",
+          "name": "Batch acceptance 30"
+        },
+        "31": {
+          "type": "blank",
+          "name": "Batch acceptance 31"
+        },
+        "32": {
+          "type": "blank",
+          "name": "Batch acceptance 32"
+        },
+        "33": {
+          "type": "blank",
+          "name": "Batch acceptance 33"
+        },
+        "34": {
+          "type": "blank",
+          "name": "Batch acceptance 34"
+        },
+        "35": {
+          "type": "blank",
+          "name": "Batch acceptance 35"
+        },
+        "36": {
+          "type": "blank",
+          "name": "Batch acceptance 36"
+        },
+        "37": {
+          "type": "blank",
+          "name": "Batch acceptance 37"
+        },
+        "38": {
+          "type": "blank",
+          "name": "Batch acceptance 38"
+        },
+        "39": {
+          "type": "blank",
+          "name": "Batch acceptance 39"
+        },
+        "40": {
+          "type": "blank",
+          "name": "Batch acceptance 40"
+        },
+        "41": {
+          "type": "blank",
+          "name": "Batch acceptance 41"
+        },
+        "42": {
+          "type": "blank",
+          "name": "Batch acceptance 42"
+        },
+        "43": {
+          "type": "blank",
+          "name": "Batch acceptance 43"
+        },
+        "44": {
+          "type": "blank",
+          "name": "Batch acceptance 44"
+        },
+        "45": {
+          "type": "blank",
+          "name": "Batch acceptance 45"
+        },
+        "46": {
+          "type": "blank",
+          "name": "Batch acceptance 46"
+        },
+        "47": {
+          "type": "blank",
+          "name": "Batch acceptance 47"
+        },
+        "48": {
+          "type": "blank",
+          "name": "Batch acceptance 48"
+        },
+        "49": {
+          "type": "blank",
+          "name": "Batch acceptance 49"
+        },
+        "50": {
+          "type": "blank",
+          "name": "Batch acceptance 50"
+        },
+        "51": {
+          "type": "blank",
+          "name": "Batch acceptance 51"
+        },
+        "52": {
+          "type": "blank",
+          "name": "Batch acceptance 52"
+        },
+        "53": {
+          "type": "blank",
+          "name": "Batch acceptance 53"
         }
       },
       "order": [
         "1",
         "2",
-        "3"
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33",
+        "34",
+        "35",
+        "36",
+        "37",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47",
+        "48",
+        "49",
+        "50",
+        "51",
+        "52",
+        "53"
       ]
     },
     "controls": {
@@ -221,16 +471,136 @@
           "map": {
             "1": "fivetran_db_github__pull_request.created_at",
             "2": "fivetran_db_github__pull_request.created_at",
-            "3": "fivetran_db_github__pull_request.created_at"
+            "3": "fivetran_db_github__pull_request.created_at",
+            "4": false,
+            "5": false,
+            "6": false,
+            "7": false,
+            "8": false,
+            "9": false,
+            "10": false,
+            "11": false,
+            "12": false,
+            "13": false,
+            "14": false,
+            "15": false,
+            "16": false,
+            "17": false,
+            "18": false,
+            "19": false,
+            "20": false,
+            "21": false,
+            "22": false,
+            "23": false,
+            "24": false,
+            "25": false,
+            "26": false,
+            "27": false,
+            "28": false,
+            "29": false,
+            "30": false,
+            "31": false,
+            "32": false,
+            "33": false,
+            "34": false,
+            "35": false,
+            "36": false,
+            "37": false,
+            "38": false,
+            "39": false,
+            "40": false,
+            "41": false,
+            "42": false,
+            "43": false,
+            "44": false,
+            "45": false,
+            "46": false,
+            "47": false,
+            "48": false,
+            "49": false,
+            "50": false,
+            "51": false,
+            "52": false,
+            "53": false
+          }
+        },
+        "temporary-date": {
+          "config": {
+            "type": "date",
+            "kind": "BETWEEN",
+            "left_side": "2026-09-01",
+            "right_side": "2026-09-15",
+            "fieldName": "fivetran_db_github__pull_request.created_at",
+            "base_view": "fivetran_db_github__pull_request",
+            "topic": "GitHub PR",
+            "label": "Temporary filter",
+            "ui_type": "BETWEEN",
+            "requiredScope": "tiles"
+          },
+          "map": {
+            "1": false,
+            "2": false,
+            "3": false,
+            "4": false,
+            "5": false,
+            "6": false,
+            "7": false,
+            "8": false,
+            "9": false,
+            "10": false,
+            "11": false,
+            "12": false,
+            "13": false,
+            "14": false,
+            "15": false,
+            "16": false,
+            "17": false,
+            "18": false,
+            "19": false,
+            "20": false,
+            "21": false,
+            "22": false,
+            "23": false,
+            "24": false,
+            "25": false,
+            "26": false,
+            "27": false,
+            "28": false,
+            "29": false,
+            "30": false,
+            "31": false,
+            "32": false,
+            "33": false,
+            "34": false,
+            "35": false,
+            "36": false,
+            "37": false,
+            "38": false,
+            "39": false,
+            "40": false,
+            "41": false,
+            "42": false,
+            "43": false,
+            "44": false,
+            "45": false,
+            "46": false,
+            "47": false,
+            "48": false,
+            "49": false,
+            "50": false,
+            "51": false,
+            "52": false,
+            "53": false
           }
         }
       },
       "order": [
-        "acceptance-date"
+        "acceptance-date",
+        "temporary-date"
       ]
     },
     "settings": {
-      "crossfilterEnabled": true,
+      "crossfilterEnabled": false,
       "customText": null,
       "facetFilters": true,
       "refreshInterval": null,
@@ -254,27 +624,6 @@
             },
             {
               "containerType": "stack",
-              "instanceKey": "tile-2",
-              "style": "tile",
-              "height": "180px",
-              "children": [
-                {
-                  "type": "query",
-                  "id": "2",
-                  "instanceKey": "title-2",
-                  "as": "metadata",
-                  "format": "name"
-                },
-                {
-                  "type": "query",
-                  "id": "2",
-                  "instanceKey": "chart-2",
-                  "as": "chart"
-                }
-              ]
-            },
-            {
-              "containerType": "stack",
               "instanceKey": "tile-1",
               "style": "tile",
               "height": "320px",
@@ -290,6 +639,27 @@
                   "type": "query",
                   "id": "1",
                   "instanceKey": "chart-1",
+                  "as": "chart"
+                }
+              ]
+            },
+            {
+              "containerType": "stack",
+              "instanceKey": "tile-2",
+              "style": "tile",
+              "height": "180px",
+              "children": [
+                {
+                  "type": "query",
+                  "id": "2",
+                  "instanceKey": "title-2",
+                  "as": "metadata",
+                  "format": "name"
+                },
+                {
+                  "type": "query",
+                  "id": "2",
+                  "instanceKey": "chart-2",
                   "as": "chart"
                 }
               ]
