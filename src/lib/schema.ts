@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import schema from "../../schema/datadog-dashboard.schema.json" with { type: "json" };
+import omniSchema from "../../schema/omni-dashboard.schema.json" with { type: "json" };
 import { getConfigDir } from "./cache.js";
 import { SCHEMA_FILENAME } from "./meta.js";
 
@@ -19,6 +20,20 @@ export function getSchemaPath(): string {
  * validators like `ajv` — losing it is never fatal, hence the silent failure.
  */
 export function ensureSchemaFile(): void {
+  try {
+    mkdirSync(getConfigDir(), { recursive: true });
+    const omniPath = join(getConfigDir(), "omni-dashboard.schema.json");
+    const body = JSON.stringify(omniSchema, null, 2) + "\n";
+    let previous = "";
+    try {
+      previous = readFileSync(omniPath, "utf8");
+    } catch {
+      /* First run. */
+    }
+    if (previous !== body) writeFileSync(omniPath, body);
+  } catch {
+    /* Offline schema materialization is best effort. */
+  }
   try {
     const schemaPath = getSchemaPath();
     if (readFileSync(schemaPath, "utf-8") === SCHEMA_BODY) return;

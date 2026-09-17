@@ -1,7 +1,5 @@
-import { execSync } from "child_process";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
+import { spawnSync } from "node:child_process";
+import { ChartRoomError, object } from "./errors.js";
 import type {
   DashboardDefinition,
   DatadogCreateResponse,
@@ -9,138 +7,108 @@ import type {
 } from "../types.js";
 
 const DATADOG_BASE_URL = "https://app.datadoghq.com/dashboard";
-
 export function dashboardUrl(id: string): string {
   return `${DATADOG_BASE_URL}/${id}`;
 }
-
-let tempFileCounter = 0;
-function writeTempJson(data: unknown): string {
-  const tmpFile = path.join(
-    os.tmpdir(),
-    `dd-dash-${Date.now()}-${tempFileCounter++}.json`,
+export function runDogCommand(args: string[], input?: string): string {
+  const result = spawnSync(
+    "uvx",
+    ["--from", "datadog", "dogshell", "dashboard", ...args],
+    {
+      encoding: "utf8",
+      input,
+      timeout: 120_000,
+      maxBuffer: 16 * 1024 * 1024,
+      stdio: "pipe",
+    },
   );
-  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2) + "\n");
-  return tmpFile;
-}
-
-function runDogCommand(cmd: string): string {
-  try {
-    return execSync(cmd, {
-      encoding: "utf-8",
-      env: {
-        ...process.env,
-        DATADOG_API_KEY: process.env.DATADOG_API_KEY,
-        DATADOG_APP_KEY: process.env.DATADOG_APP_KEY,
-      },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-  } catch (error) {
-    const err = error as { stderr?: string; message?: string };
-    throw new Error(`dogshell command failed: ${err.stderr ?? err.message}`);
+  if (result.status !== 0) {
+    const status = result.stderr?.match(/\b(401|403|404|409|429)\b/)?.[1];
+    const code =
+      (
+        {
+          "401": "UNAUTHENTICATED",
+          "403": "PERMISSION_DENIED",
+          "404": "NOT_FOUND",
+          "409": "CONFLICT",
+          "429": "RATE_LIMITED",
+        } as Record<string, string>
+      )[status || ""] || "DATADOG_ERROR";
+    throw new ChartRoomError(
+      code,
+      `dogshell dashboard ${args[0]} failed${status ? ` (HTTP ${status})` : ""}; check Datadog credentials, permissions and connectivity`,
+    );
   }
+  return result.stdout;
 }
-
 function parseCreateResponse(
   output: string,
   title: string,
 ): DatadogCreateResponse {
-  const lines = output.trim().split("\n");
-  for (const line of lines) {
+  for (const text of [output, ...output.trim().split("\n")]) {
     try {
-      const parsed = JSON.parse(line) as { id?: string; title?: string };
-      if (parsed.id) {
+      const parsed = object(JSON.parse(text), "Datadog create response");
+      if (typeof parsed.id === "string" && parsed.id)
         return {
           id: parsed.id,
-          title: parsed.title ?? title,
+          title: typeof parsed.title === "string" ? parsed.title : title,
           url: dashboardUrl(parsed.id),
         };
-      }
     } catch {
-      // Not JSON, continue
+      /* dogshell may print a status line before JSON. */
     }
   }
-
-  const idMatch = output.match(/"id":\s*"([^"]+)"/);
-  if (idMatch?.[1]) {
-    return { id: idMatch[1], title, url: dashboardUrl(idMatch[1]) };
-  }
-
-  throw new Error(`Could not parse dashboard ID from response: ${output}`);
+  const id = output.match(/"id":\s*"([A-Za-z0-9-]+)"/)?.[1];
+  if (id) return { id, title, url: dashboardUrl(id) };
+  throw new ChartRoomError(
+    "INVALID_RESPONSE",
+    "Could not parse a dashboard ID from dogshell; inspect Datadog before retrying creation",
+  );
 }
-
 export function createDashboard(
   title: string,
   layoutType: string,
   widgets: unknown[],
   options?: { description?: string; template_variables?: unknown[] },
 ): DatadogCreateResponse {
-  const widgetsFile = writeTempJson(widgets);
-  try {
-    let cmd = `uvx --from datadog dogshell dashboard post "${title}" "$(cat ${widgetsFile})" "${layoutType}"`;
-
-    if (options?.description) {
-      cmd += ` --description "${options.description.replace(/"/g, '\\"')}"`;
-    }
-
-    if (options?.template_variables && options.template_variables.length > 0) {
-      const varsFile = writeTempJson(options.template_variables);
-      cmd += ` --template_variables "$(cat ${varsFile})"`;
-      try {
-        const output = runDogCommand(cmd);
-        return parseCreateResponse(output, title);
-      } finally {
-        fs.unlinkSync(varsFile);
-      }
-    }
-
-    const output = runDogCommand(cmd);
-    return parseCreateResponse(output, title);
-  } finally {
-    fs.unlinkSync(widgetsFile);
-  }
+  const args = ["post", title, JSON.stringify(widgets), layoutType];
+  if (options?.description) args.push("--description", options.description);
+  if (options?.template_variables?.length)
+    args.push(
+      "--template_variables",
+      JSON.stringify(options.template_variables),
+    );
+  return parseCreateResponse(runDogCommand(args), title);
 }
-
 export function updateDashboard(
-  dashboardId: string,
+  id: string,
   dashboard: DashboardDefinition,
 ): void {
-  const widgetsFile = writeTempJson(dashboard.widgets);
-  try {
-    let cmd = `cat ${widgetsFile} | uvx --from datadog dogshell dashboard update "${dashboardId}" "${dashboard.title}" "${dashboard.layout_type}"`;
-
-    if (dashboard.description) {
-      cmd += ` --description "${dashboard.description.replace(/"/g, '\\"')}"`;
-    }
-
-    const templateVars = dashboard.template_variables as unknown[] | undefined;
-    if (templateVars && templateVars.length > 0) {
-      const varsFile = writeTempJson(templateVars);
-      cmd += ` --template_variables "$(cat ${varsFile})"`;
-      try {
-        runDogCommand(cmd);
-      } finally {
-        fs.unlinkSync(varsFile);
-      }
-      return;
-    }
-
-    runDogCommand(cmd);
-  } finally {
-    fs.unlinkSync(widgetsFile);
-  }
+  const args = ["update", id, dashboard.title, dashboard.layout_type];
+  if (dashboard.description) args.push("--description", dashboard.description);
+  const variables = dashboard.template_variables as unknown[] | undefined;
+  if (variables?.length)
+    args.push("--template_variables", JSON.stringify(variables));
+  runDogCommand(args, JSON.stringify(dashboard.widgets));
 }
-
-export function getDashboard(dashboardId: string): {
+export function getDashboard(id: string): {
   exists: boolean;
   data?: RemoteDashboard;
 } {
   try {
-    const cmd = `uvx --from datadog dogshell dashboard show "${dashboardId}"`;
-    const output = runDogCommand(cmd);
-    const parsed = JSON.parse(output) as RemoteDashboard;
-    return { exists: true, data: parsed };
-  } catch {
-    return { exists: false };
+    const data = object(
+      JSON.parse(runDogCommand(["show", id])),
+      "Datadog dashboard",
+    ) as RemoteDashboard;
+    return { exists: true, data };
+  } catch (error) {
+    if (error instanceof ChartRoomError && error.code === "NOT_FOUND")
+      return { exists: false };
+    if (error instanceof SyntaxError)
+      throw new ChartRoomError(
+        "INVALID_RESPONSE",
+        "Datadog returned malformed JSON",
+      );
+    throw error;
   }
 }

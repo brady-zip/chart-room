@@ -1,52 +1,33 @@
-import * as path from "path";
 import { Command } from "commander";
-import {
-  readCache,
-  writeCache,
-  scanDashboards,
-  type CacheEntry,
-} from "../lib/cache.js";
+import { relative } from "node:path";
+import { refreshCache } from "../lib/cache.js";
 import { dashboardUrl } from "../lib/datadog.js";
+import { output, type FileOptions } from "./omni.js";
 
-export const scanCommand = new Command()
-  .name("scan")
-  .description("Scan project for dashboard files and update cache")
+export const scanCommand = new Command("scan")
+  .description("Index Datadog and Omni definitions in this repository")
   .option("-q, --quiet", "Only output count of found dashboards")
-  .action((options: { quiet?: boolean }) => {
-    const cwd = process.cwd();
-    const found = scanDashboards(cwd);
-
-    const cache = readCache();
-    const existingPaths = new Set(found.map((d) => d.path));
-
-    // Keep entries from other projects, update/add entries from this scan
-    const otherEntries = cache.entries.filter(
-      (e) => !existingPaths.has(e.path),
-    );
-    const now = new Date().toISOString();
-
-    const newEntries: CacheEntry[] = found.map((d) => ({
-      path: d.path,
-      title: d.title,
-      prodId: d.prodId,
-      testId: d.testId,
-      lastScanned: now,
-    }));
-
-    cache.entries = [...otherEntries, ...newEntries];
-    writeCache(cache);
-
+  .action((options: { quiet?: boolean }, command: Command) => {
+    const shared = command.optsWithGlobals<FileOptions>();
+    const found = refreshCache(process.cwd(), shared.provider);
+    if (shared.format === "json") {
+      output({ dashboards: found }, shared);
+      return;
+    }
     if (options.quiet) {
       console.log(found.length);
-    } else {
-      console.log(`Found ${found.length} dashboard(s):\n`);
-      for (const d of found) {
-        const rel = path.relative(cwd, d.path);
-        console.log(`  ${rel}`);
-        console.log(`    title: ${d.title}`);
-        if (d.prodId) console.log(`    prod:  ${dashboardUrl(d.prodId)}`);
-        if (d.testId) console.log(`    test:  ${dashboardUrl(d.testId)}`);
-      }
-      console.log(`\nCache updated at: ~/.config/chart-room/cache.json`);
+      return;
+    }
+    console.log(`Found ${found.length} dashboard(s):\n`);
+    for (const d of found) {
+      const url = (id: string) =>
+        d.provider === "omni"
+          ? `${d.instance}/dashboards/${id}`
+          : dashboardUrl(id);
+      console.log(
+        `  ${relative(process.cwd(), d.path)} (${d.provider})\n    title: ${d.title}`,
+      );
+      if (d.prodId) console.log(`    prod:  ${url(d.prodId)}`);
+      if (d.testId) console.log(`    test:  ${url(d.testId)}`);
     }
   });

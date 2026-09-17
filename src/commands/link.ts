@@ -1,3 +1,4 @@
+import { omniFileAction, type FileOptions } from "./omni.js";
 import { Command } from "commander";
 import { readDashboard, writeDashboard } from "../lib/dashboard.js";
 import { dashboardUrl, getDashboard } from "../lib/datadog.js";
@@ -8,17 +9,30 @@ export const linkCommand = new Command()
   .description("Link existing dashboard to local file")
   .option("--test", "Link as test dashboard instead of prod")
   .argument("<file>", "Path to dashboard JSON file")
-  .argument("<id>", "Datadog dashboard ID")
+  .argument("<id>", "Dashboard identifier")
   .action(
     async (
       filePath: string,
       dashboardId: string,
-      options: { test?: boolean },
+      options: FileOptions,
+      command: Command,
     ) => {
+      if (
+        omniFileAction(
+          "link",
+          filePath,
+          command.optsWithGlobals<FileOptions>(),
+          dashboardId,
+        )
+      )
+        return;
+      const shared = command.optsWithGlobals<FileOptions>();
+      const log =
+        shared.format === "json" ? (..._values: unknown[]) => {} : console.log;
       const isTest = options.test ?? false;
       const idField = isTest ? "zip_test_dashboard_id" : "zip_dashboard_id";
       const label = isTest ? "[TEST]" : "[PROD]";
-      console.log(`Linking ${label} dashboard: ${filePath} -> ${dashboardId}`);
+      log(`Linking ${label} dashboard: ${filePath} -> ${dashboardId}`);
 
       const dashboard = readDashboard(filePath);
 
@@ -29,12 +43,12 @@ export const linkCommand = new Command()
         );
         const answer = await prompt("Overwrite? (y/N): ");
         if (answer.trim().toLowerCase() !== "y") {
-          console.log("Aborted.");
+          log("Aborted.");
           process.exit(1);
         }
       }
 
-      console.log(`\nValidating dashboard ${dashboardId} exists in Datadog...`);
+      log(`\nValidating dashboard ${dashboardId} exists in Datadog...`);
       const result = getDashboard(dashboardId);
 
       if (!result.exists) {
@@ -45,12 +59,22 @@ export const linkCommand = new Command()
         process.exit(1);
       }
 
-      console.log(`  Found: ${result.data?.title}`);
+      log(`  Found: ${result.data?.title}`);
 
       (dashboard as Record<string, unknown>)[idField] = dashboardId;
       writeDashboard(filePath, dashboard);
 
-      console.log(`\nUpdated ${filePath} with ${idField}: ${dashboardId}`);
-      console.log(`Dashboard URL: ${dashboardUrl(dashboardId)}`);
+      if (shared.format === "json")
+        console.log(
+          JSON.stringify({
+            provider: "datadog",
+            outcome: "LINKED",
+            id: dashboardId,
+            target: isTest ? "test" : "prod",
+            url: dashboardUrl(dashboardId),
+          }),
+        );
+      log(`\nUpdated ${filePath} with ${idField}: ${dashboardId}`);
+      log(`Dashboard URL: ${dashboardUrl(dashboardId)}`);
     },
   );

@@ -1,158 +1,179 @@
 import { Command } from "commander";
-import { getCachePath } from "../lib/cache.js";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import {
+  getConfigDir,
+  readCache,
+  repositoryRoot,
+  isDefinitionFile,
+} from "../lib/cache.js";
+import { ChartRoomError } from "../lib/errors.js";
+import { createHash } from "node:crypto";
 
-const BASH_SCRIPT = `# chart-room bash completion
-# Add to ~/.bashrc: eval "$(chart-room completion bash)"
-
-_chart_room_completions() {
-  local cur="\${COMP_WORDS[COMP_CWORD]}"
-  local prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  local commands="comment completion init link prod scan status test"
-
-  if [[ \${COMP_CWORD} -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "\${commands}" -- "\${cur}"))
-    return
-  fi
-
-  case "\${prev}" in
-    completion)
-      COMPREPLY=($(compgen -W "bash zsh fish" -- "\${cur}"))
-      return
-      ;;
-    comment|init|link|prod|status|test)
-      local cache_file="CACHE_PATH"
-      if [[ -f "\${cache_file}" ]] && command -v jq &>/dev/null; then
-        local paths=$(jq -r '.entries[].path' "\${cache_file}" 2>/dev/null)
-        COMPREPLY=($(compgen -W "\${paths}" -- "\${cur}"))
-      else
-        COMPREPLY=($(compgen -f -X '!*.dash.jsonc' -- "\${cur}") $(compgen -f -X '!*.dash.json' -- "\${cur}"))
-      fi
-      return
-      ;;
-  esac
-
-  COMPREPLY=($(compgen -f -- "\${cur}"))
+export const COMMANDS = [
+  "auth",
+  "comment",
+  "completion",
+  "import",
+  "init",
+  "link",
+  "omni",
+  "prod",
+  "scan",
+  "status",
+  "test",
+  "validate",
+];
+const OPTIONS: Record<string, string[]> = {
+  init: ["--model", "--prod-folder", "--test-folder", "--retry-create"],
+  import: ["--test-folder"],
+  link: ["--test"],
+  prod: ["--dry-run"],
+  status: ["--json"],
+  validate: ["--remote"],
+  scan: ["--quiet"],
+  auth: ["--model"],
+  omni: ["--model", "--topic", "--refresh"],
+};
+export function completionCandidates(
+  words: string[],
+  cwd = process.cwd(),
+): string[] {
+  const current = words.at(-1) || "";
+  const previous = words.at(-2) || "";
+  const before = words.slice(0, -1);
+  const value = (flag: string) => {
+    const at = before.indexOf(flag);
+    return at >= 0
+      ? before[at + 1]
+      : before.find((w) => w.startsWith(`${flag}=`))?.slice(flag.length + 1);
+  };
+  const provider = value("--provider");
+  const command = before.find((w) => COMMANDS.includes(w));
+  let candidates: string[] = [];
+  if (previous === "--provider") candidates = ["datadog", "omni"];
+  else if (previous === "--format") candidates = ["human", "json"];
+  else if (previous === "--instance") candidates = ["https://zip.omniapp.co"];
+  else if (previous === "--model" || previous === "--topic") {
+    const parts = [
+      repositoryRoot(cwd),
+      "omni",
+      value("--instance") || "https://zip.omniapp.co",
+      value("--profile") || "default",
+      previous === "--topic" ? value("--model") : undefined,
+      undefined,
+    ];
+    const key = createHash("sha256")
+      .update(JSON.stringify(parts))
+      .digest("hex");
+    try {
+      const saved = JSON.parse(
+        readFileSync(join(getConfigDir(), "catalog", `${key}.json`), "utf8"),
+      );
+      if (Array.isArray(saved.names))
+        candidates = saved.names.filter((v: unknown) => typeof v === "string");
+    } catch {
+      /* Catalog refresh is explicit and never runs while completing. */
+    }
+  } else if (["--profile", "--prod-folder", "--test-folder"].includes(previous))
+    candidates = [];
+  else if (current.startsWith("-"))
+    candidates = [
+      "--help",
+      "--version",
+      "--provider",
+      "--profile",
+      "--format",
+      "--instance",
+      ...(OPTIONS[command || ""] || []),
+    ];
+  else if (!command) candidates = COMMANDS;
+  else if (command === "completion") candidates = ["bash", "zsh", "fish"];
+  else if (command === "auth") candidates = ["login", "status"];
+  else if (command === "omni") candidates = ["models", "topics", "fields"];
+  else {
+    const root = repositoryRoot(cwd);
+    candidates = readCache()
+      .entries.filter(
+        (e) =>
+          e.repository === root &&
+          (!provider || e.provider === provider) &&
+          existsSync(e.path),
+      )
+      .map((e) =>
+        current.startsWith("/")
+          ? e.path
+          : `${current.startsWith("./") ? "./" : ""}${relative(cwd, e.path)}`,
+      );
+    // Files created since the last scan, and directories en route to nested definitions.
+    const directory = dirname(current || ".");
+    try {
+      for (const entry of readdirSync(resolve(cwd, directory), {
+        withFileTypes: true,
+      })) {
+        if (
+          entry.isDirectory() &&
+          ["node_modules", ".git"].includes(entry.name)
+        )
+          continue;
+        const matchesProvider =
+          !provider ||
+          (provider === "omni"
+            ? entry.name.endsWith(".omni.jsonc")
+            : /\.dash\.jsonc?$/.test(entry.name));
+        if (
+          entry.isDirectory() ||
+          (isDefinitionFile(entry.name) && matchesProvider)
+        )
+          candidates.push(
+            `${directory === "." ? (current.startsWith("./") ? "./" : "") : `${directory}/`}${entry.name}${entry.isDirectory() ? "/" : ""}`,
+          );
+      }
+    } catch {
+      /* An unfinished path is normal during completion. */
+    }
+  }
+  return [...new Set(candidates)]
+    .filter((c) => c.startsWith(current) && !/[\n\r\t]/.test(c))
+    .sort();
 }
 
+export function completionScript(shell: string): string {
+  if (shell === "bash")
+    return `# chart-room bash completion: all candidates are local; scan/--refresh populate caches.
+_chart_room_completions() {
+  local candidate
+  COMPREPLY=()
+  while IFS= read -r candidate; do
+    COMPREPLY+=("$candidate")
+  done < <(chart-room __complete "\${COMP_WORDS[@]:1:COMP_CWORD}")
+  compopt -o filenames 2>/dev/null || true
+}
 complete -F _chart_room_completions chart-room
 `;
-
-const ZSH_SCRIPT = `# chart-room zsh completion
-# Add to ~/.zshrc: eval "$(chart-room completion zsh)"
-
+  if (shell === "zsh")
+    return `# chart-room zsh completion
 _chart_room() {
-  local commands=(
-    'comment:Add test dashboard link as PR comment'
-    'completion:Output shell completion script'
-    'init:Create [TEST] and prod dashboards in Datadog'
-    'link:Link a dashboard file to existing Datadog dashboard'
-    'prod:Upload dashboard to production environment'
-    'scan:Scan project for dashboard files and update cache'
-    'status:Show dashboard sync status'
-    'test:Upload dashboard to [TEST] environment'
-  )
-
-  local shells=(bash zsh fish)
-
-  _arguments -C \\
-    '1: :->command' \\
-    '*: :->args'
-
-  case $state in
-    command)
-      _describe -t commands 'commands' commands
-      ;;
-    args)
-      case \${words[2]} in
-        completion)
-          _values 'shell' $shells
-          ;;
-        comment|init|link|prod|status|test)
-          local cache_file="CACHE_PATH"
-          if [[ -f "\${cache_file}" ]] && (( $+commands[jq] )); then
-            local -a paths
-            paths=(\${(f)"$(jq -r '.entries[].path' "\${cache_file}" 2>/dev/null)"})
-            _values 'dashboard' $paths
-          else
-            _files -g '*.dash.(jsonc|json)'
-          fi
-          ;;
-        *)
-          _files
-          ;;
-      esac
-      ;;
-  esac
+  local -a candidates
+  candidates=("\${(@f)$(chart-room __complete "\${words[@]:1:$((CURRENT-1))}")}")
+  compadd -a candidates
 }
-
 compdef _chart_room chart-room
 `;
-
-const FISH_SCRIPT = `# chart-room fish completion
-# Add to ~/.config/fish/completions/chart-room.fish
-
-set -l commands comment completion init link prod scan status test
-set -l shells bash zsh fish
-
-complete -c chart-room -f
-
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a comment -d 'Add test dashboard link as PR comment'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a init -d 'Create [TEST] and prod dashboards in Datadog'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a link -d 'Link a dashboard file to existing Datadog dashboard'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a prod -d 'Upload dashboard to production environment'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a status -d 'Show dashboard sync status'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a test -d 'Upload dashboard to [TEST] environment'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a scan -d 'Scan project for dashboard files and update cache'
-complete -c chart-room -n "not __fish_seen_subcommand_from $commands" \\
-  -a completion -d 'Output shell completion script'
-
-complete -c chart-room -n "__fish_seen_subcommand_from completion" -a "$shells"
-
-function __chart_room_dash_files
-  set -l cache_file "CACHE_PATH"
-  if test -f "$cache_file"; and type -q jq
-    jq -r '.entries[].path' "$cache_file" 2>/dev/null
-  else
-    find . '(' -name node_modules -o -name .git ')' -prune -o \\
-      '(' -name '*.dash.jsonc' -o -name '*.dash.json' ')' -print 2>/dev/null |
-      string replace -r '^\\./' ''
-  end
+  if (shell === "fish")
+    return `# chart-room fish completion
+function __chart_room_candidates
+  set -l words (commandline -opc)
+  chart-room __complete $words[2..-1] (commandline -ct)
 end
-
-complete -c chart-room -n "__fish_seen_subcommand_from comment init link prod status test" \\
-  -a "(__chart_room_dash_files)"
+complete -c chart-room -f -a '(__chart_room_candidates)'
 `;
-
-export const completionCommand = new Command()
-  .name("completion")
-  .description("Output shell completion script")
-  .argument("<shell>", "Shell type (bash, zsh, fish)")
-  .action((shell: string) => {
-    const cachePath = getCachePath();
-    let script: string;
-
-    switch (shell) {
-      case "bash":
-        script = BASH_SCRIPT;
-        break;
-      case "zsh":
-        script = ZSH_SCRIPT;
-        break;
-      case "fish":
-        script = FISH_SCRIPT;
-        break;
-      default:
-        console.error(`Unknown shell: ${shell}`);
-        console.error("Supported shells: bash, zsh, fish");
-        process.exit(1);
-    }
-
-    console.log(script.replaceAll("CACHE_PATH", cachePath));
-  });
+  throw new ChartRoomError(
+    "INVALID_SHELL",
+    "Supported shells: bash, zsh, fish",
+  );
+}
+export const completionCommand = new Command("completion")
+  .description("Print offline bash, zsh or fish completion")
+  .argument("<shell>")
+  .action((shell) => console.log(completionScript(shell)));

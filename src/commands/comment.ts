@@ -1,90 +1,143 @@
-import { execSync } from "child_process";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { relative, resolve } from "node:path";
 import { Command } from "commander";
-import { readDashboard } from "../lib/dashboard.js";
+import { repositoryRoot } from "../lib/cache.js";
+import { lastVerification } from "../lib/verification.js";
+import { ChartRoomError } from "../lib/errors.js";
+import { readObject } from "../lib/files.js";
 import { dashboardUrl } from "../lib/datadog.js";
+import { selectProvider } from "../providers/index.js";
+import { omniUrl, validateDefinition } from "../providers/omni/definition.js";
+import { output, type FileOptions } from "./omni.js";
 
-const COMMENT_MARKER = "<!-- chart-room-test-dashboard -->";
-
-function run(cmd: string): string {
-  return execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
-}
-
-function tryRun(cmd: string): string | null {
+function gh(args: string[], input?: string): string {
   try {
-    return run(cmd);
+    return execFileSync("gh", args, {
+      input,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
   } catch {
-    return null;
+    throw new ChartRoomError(
+      "GITHUB_ERROR",
+      "GitHub comment operation failed; check gh authentication and the branch PR",
+    );
   }
 }
-
-function getCurrentBranch(): string {
-  return run("git rev-parse --abbrev-ref HEAD").trim();
+export function commentBody(
+  file: string,
+  provider: string,
+  title: string,
+  testUrl: string,
+  prodUrl?: string,
+) {
+  const key = relative(repositoryRoot(), resolve(file));
+  const marker = `<!-- chart-room:${provider}:${createHash("sha256").update(key).digest("hex").slice(0, 16)} -->`;
+  const verification = lastVerification(file, provider, "test");
+  const status = !verification
+    ? "No local publication verification recorded."
+    : `${verification.outcome} at ${verification.at}; ${verification.matchesLocalFile ? "matches this local file" : "file changed since this attempt"}; ${verification.verified ? "published readback verified" : "publication not verified"}.`;
+  const safeTitle = title.replace(/[[\]\r\n]/g, " ");
+  return {
+    marker,
+    body: `${marker}\n${provider === "datadog" ? "<!-- chart-room-test-dashboard -->\n" : ""}## ${provider === "omni" ? "Omni" : "Datadog"} dashboard preview\n\n[${safeTitle} — test](${testUrl})${prodUrl ? ` · [Production](${prodUrl})` : ""}\n\nLast local verification: ${status}\n\nDashboard links identify targets; they do not establish publication success.`,
+  };
 }
-
-function getPrNumber(): string | null {
-  const branch = getCurrentBranch();
-  const result = tryRun(`gh pr view ${branch} --json number --jq .number`);
-  return result?.trim() || null;
-}
-
-function getExistingComment(prNumber: string): string | null {
-  const comments = tryRun(
-    `gh api repos/{owner}/{repo}/issues/${prNumber}/comments --jq '.[].body'`,
-  );
-  if (!comments) return null;
-
-  const lines = comments.split("\n");
-  for (const line of lines) {
-    if (line.includes(COMMENT_MARKER)) {
-      return line;
+export const commentCommand = new Command("comment")
+  .description("Upsert a provider-specific PR preview comment")
+  .argument("<file>")
+  .action((file: string, _options: FileOptions, command: Command) => {
+    const options = command.optsWithGlobals<FileOptions>();
+    const provider = selectProvider(file, options.provider);
+    const value = readObject(file);
+    const definition =
+      provider === "omni" ? validateDefinition(value, true) : undefined;
+    if (
+      definition &&
+      options.instance &&
+      options.instance !== definition.instance
+    )
+      throw new ChartRoomError(
+        "WRONG_INSTANCE",
+        "--instance conflicts with the dashboard file",
+      );
+    const test =
+      definition?.targets.test ||
+      (value.zip_test_dashboard_id as string | undefined);
+    const prod =
+      definition?.targets.prod ||
+      (value.zip_dashboard_id as string | undefined);
+    if (!test)
+      throw new ChartRoomError(
+        "NOT_LINKED",
+        "Link or initialize a test target first",
+      );
+    const url = (id: string) =>
+      definition ? omniUrl(definition.instance, id) : dashboardUrl(id);
+    const { marker, body } = commentBody(
+      file,
+      provider,
+      definition?.document.name || String(value.title),
+      url(test),
+      prod ? url(prod) : undefined,
+    );
+    let pr: { number: number };
+    try {
+      pr = JSON.parse(gh(["pr", "view", "--json", "number"]));
+    } catch {
+      output(
+        {
+          outcome: "NO_PR",
+          message: "Create a PR on the current branch first",
+        },
+        options,
+      );
+      return;
     }
-  }
-  return null;
-}
-
-function addComment(prNumber: string, body: string): void {
-  const escaped = body.replace(/'/g, "'\\''");
-  run(`gh pr comment ${prNumber} --body '${escaped}'`);
-}
-
-export const commentCommand = new Command()
-  .name("comment")
-  .description("Add test dashboard link as PR comment")
-  .argument("<file>", "Path to dashboard JSON file")
-  .action((filePath: string) => {
-    const dashboard = readDashboard(filePath);
-
-    if (!dashboard.zip_test_dashboard_id) {
-      console.error("Error: No zip_test_dashboard_id set.");
-      console.error('Run "init <file>" first to create test dashboard.');
-      process.exit(1);
-    }
-
-    const prNumber = getPrNumber();
-    if (!prNumber) {
-      const branch = getCurrentBranch();
-      console.log(`No PR found for branch: ${branch}`);
-      console.log("\nCreate a PR first:");
-      console.log(`  gh pr create`);
-      process.exit(0);
-    }
-
-    const existing = getExistingComment(prNumber);
-    if (existing) {
-      console.log(`Comment already exists on PR #${prNumber}`);
-      process.exit(0);
-    }
-
-    const testUrl = dashboardUrl(dashboard.zip_test_dashboard_id);
-    const branch = getCurrentBranch();
-    const comment = `${COMMENT_MARKER}
-## 📊 Test Dashboard
-
-**Branch:** \`${branch}\`
-**Dashboard:** [${dashboard.title}](${testUrl})
-
-Run \`chart-room test ${filePath}\` to update the test dashboard.`;
-
-    addComment(prNumber, comment);
-    console.log(`Added test dashboard comment to PR #${prNumber}`);
+    if (!Number.isInteger(pr.number))
+      throw new ChartRoomError(
+        "INVALID_RESPONSE",
+        "Invalid GitHub PR response",
+      );
+    const pages = JSON.parse(
+      gh([
+        "api",
+        "--paginate",
+        "--slurp",
+        `repos/{owner}/{repo}/issues/${pr.number}/comments`,
+      ]),
+    );
+    const existing = pages
+      .flat()
+      .find(
+        (row: { body: string }) =>
+          typeof row.body === "string" &&
+          (row.body.includes(marker) ||
+            (provider === "datadog" &&
+              row.body.includes("<!-- chart-room-test-dashboard -->") &&
+              row.body.includes(url(test)))),
+      );
+    const endpoint = existing
+      ? `repos/{owner}/{repo}/issues/comments/${existing.id}`
+      : `repos/{owner}/{repo}/issues/${pr.number}/comments`;
+    gh(
+      [
+        "api",
+        "--method",
+        existing ? "PATCH" : "POST",
+        endpoint,
+        "--input",
+        "-",
+      ],
+      JSON.stringify({ body }),
+    );
+    output(
+      {
+        provider,
+        outcome: existing ? "COMMENT_UPDATED" : "COMMENT_CREATED",
+        pr: pr.number,
+      },
+      options,
+    );
   });

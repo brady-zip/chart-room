@@ -14,8 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: npm install
-      - run: bun build src/index.ts --compile --outfile chart-room-darwin-arm64
+        with:
+          bun-version: "1.3.13"
+      - run: npm ci
+      - run: brew install fish
+      - run: bun test
+      - run: bun run typecheck
+      - run: bun run build
+      - run: ./chart-room-darwin-arm64 --version
       - uses: softprops/action-gh-release@v2
         with:
           files: chart-room-darwin-arm64

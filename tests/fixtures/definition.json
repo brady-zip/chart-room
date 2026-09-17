@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "provider": "omni",
+  "instance": "https://zip.omniapp.co",
+  "targets": {
+    "prod": "ci-pilot",
+    "test": "ci-pilot-test"
+  },
+  "_meta": {
+    "intent": "Verify deployment",
+    "audience": "Dev Plat",
+    "scope": "Test data"
+  },
+  "document": {
+    "name": "Pilot",
+    "description": "A pilot",
+    "modelId": "00000000-0000-4000-8000-000000000001",
+    "queryPresentations": {
+      "data": {
+        "1": {
+          "type": "blank",
+          "name": "Notes"
+        }
+      },
+      "order": ["1"]
+    },
+    "controls": {
+      "data": {},
+      "order": []
+    },
+    "settings": {
+      "crossfilterEnabled": false,
+      "customText": null,
+      "facetFilters": true,
+      "refreshInterval": null,
+      "runQueriesOn": "current-page"
+    },
+    "containers": [
+      {
+        "containerType": "stack",
+        "instanceKey": "root",
+        "children": []
+      }
+    ]
+  }
+}

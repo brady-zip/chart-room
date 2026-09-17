@@ -1,2 +1,4 @@
 node_modules/
 dist/
+chart-room-darwin-arm64
+*.provision.json

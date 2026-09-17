@@ -1,13 +1,65 @@
+import { omniFileAction, type FileOptions } from "./omni.js";
 import { Command } from "commander";
-import { readDashboard } from "../lib/dashboard.js";
+import { addTestBanner, readDashboard } from "../lib/dashboard.js";
 import { dashboardUrl, getDashboard } from "../lib/datadog.js";
 import { diffDashboards } from "../lib/diff.js";
+import { asError } from "../lib/errors.js";
 
 export const statusCommand = new Command()
   .name("status")
   .description("Show dashboard sync status")
+  .option("--json", "Print structured status")
   .argument("<file>", "Path to dashboard JSON file")
-  .action((filePath: string) => {
+  .action((filePath: string, _options: FileOptions, command: Command) => {
+    if (
+      omniFileAction("status", filePath, command.optsWithGlobals<FileOptions>())
+    )
+      return;
+    const shared = command.optsWithGlobals<FileOptions>();
+    if (shared.json || shared.format === "json") {
+      const dashboard = readDashboard(filePath);
+      const targets: Record<string, unknown> = {};
+      for (const [target, id] of [
+        ["prod", dashboard.zip_dashboard_id],
+        ["test", dashboard.zip_test_dashboard_id],
+      ]) {
+        if (!id) {
+          targets[target!] = { outcome: "NOT_LINKED" };
+          continue;
+        }
+        try {
+          const remote = getDashboard(id);
+          const expected =
+            target === "test" && dashboard.zip_dashboard_id
+              ? addTestBanner(
+                  { ...dashboard, title: `[TEST] ${dashboard.title}` },
+                  dashboardUrl(dashboard.zip_dashboard_id),
+                )
+              : dashboard;
+          const differences = remote.data
+            ? diffDashboards(expected, remote.data)
+            : [];
+          targets[target!] = {
+            id,
+            url: dashboardUrl(id),
+            outcome: !remote.exists
+              ? "NOT_FOUND"
+              : differences.length
+                ? "DRIFT"
+                : "IN_SYNC",
+            differences,
+          };
+        } catch (error) {
+          targets[target!] = {
+            outcome: "FAILED",
+            error: asError(error).toJSON(),
+          };
+          process.exitCode = 1;
+        }
+      }
+      console.log(JSON.stringify({ provider: "datadog", targets }));
+      return;
+    }
     console.log(`Status for: ${filePath}\n`);
 
     const dashboard = readDashboard(filePath);
@@ -44,7 +96,7 @@ export const statusCommand = new Command()
       return;
     }
 
-    console.log("\nValidating dashboards in Datadog...");
+    console.log("\nValidating dashboards...");
 
     if (hasProd) {
       const prodResult = getDashboard(dashboard.zip_dashboard_id!);

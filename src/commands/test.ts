@@ -1,3 +1,5 @@
+import { recordVerification } from "../lib/verification.js";
+import { omniFileAction, type FileOptions } from "./omni.js";
 import { Command } from "commander";
 import {
   addTestBanner,
@@ -8,9 +10,16 @@ import { dashboardUrl, updateDashboard } from "../lib/datadog.js";
 
 export const testCommand = new Command()
   .name("test")
-  .description("Upload dashboard to test dashboard in Datadog")
+  .description("Upload dashboard to test dashboard")
   .argument("<file>", "Path to dashboard JSON file")
-  .action((filePath: string) => {
+  .action((filePath: string, _options: FileOptions, command: Command) => {
+    if (
+      omniFileAction("test", filePath, command.optsWithGlobals<FileOptions>())
+    )
+      return;
+    const shared = command.optsWithGlobals<FileOptions>();
+    const log =
+      shared.format === "json" ? (..._values: unknown[]) => {} : console.log;
     const dashboard = readDashboard(filePath);
 
     if (!dashboard.zip_test_dashboard_id) {
@@ -27,7 +36,7 @@ export const testCommand = new Command()
 
     const testId = dashboard.zip_test_dashboard_id;
     const prodUrl = dashboardUrl(dashboard.zip_dashboard_id);
-    console.log(`Uploading to test dashboard: ${testId}`);
+    log(`Uploading to test dashboard: ${testId}`);
 
     const processed = preprocessForUpload(dashboard, filePath);
     processed.title = `[TEST] ${dashboard.title}`;
@@ -36,14 +45,29 @@ export const testCommand = new Command()
 
     // Debug: dump payload to see what we're sending
     if (process.env.DEBUG) {
-      console.log("\n=== DEBUG: Payload being sent ===");
-      console.log(JSON.stringify(withBanner, null, 2));
-      console.log("=================================\n");
+      log("\n=== DEBUG: Payload being sent ===");
+      log(JSON.stringify(withBanner, null, 2));
+      log("=================================\n");
     }
 
     updateDashboard(testId, withBanner);
 
+    recordVerification(filePath, "datadog", "test", {
+      outcome: "UPLOADED",
+      verified: false,
+      id: testId,
+    });
+    if (shared.format === "json")
+      console.log(
+        JSON.stringify({
+          provider: "datadog",
+          outcome: "UPLOADED",
+          verified: false,
+          id: testId,
+          url: dashboardUrl(testId),
+        }),
+      );
     const uploadedAt = new Date().toISOString();
-    console.log(`\nUploaded to: ${dashboardUrl(testId)}`);
-    console.log(`Uploaded at: ${uploadedAt}`);
+    log(`\nUploaded to: ${dashboardUrl(testId)}`);
+    log(`Uploaded at: ${uploadedAt}`);
   });

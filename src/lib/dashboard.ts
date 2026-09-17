@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { parseJsonc } from "./jsonc.js";
+import { readObject, updateJsonc } from "./files.js";
 import {
   GENERATED_COMMENT_LINE,
   LEGACY_GENERATED_COMMENT_KEY,
@@ -43,14 +44,28 @@ export function readDashboard(filePath: string): DashboardDefinition {
 /**
  * Writes the config as JSONC: the "generated with chart-room" note goes above
  * the object as a `//` comment, and `$schema` is re-stamped as the first key
- * with a note above it explaining where the schema comes from. Comments
- * elsewhere in the file are not preserved across a write.
+ * with a note above it explaining where the schema comes from. Existing
+ * definitions receive tree edits that preserve user comments.
  */
 export function writeDashboard(
   filePath: string,
   dashboard: DashboardDefinition,
 ): void {
   const absolutePath = path.resolve(filePath);
+  if (fs.existsSync(absolutePath)) {
+    const current = readObject(filePath);
+    const changes: [string[], unknown][] = Object.entries(dashboard)
+      .filter(
+        ([key, value]) =>
+          key !== "$schema" &&
+          JSON.stringify(current[key]) !== JSON.stringify(value),
+      )
+      .map(([key, value]) => [[key], value]);
+    if (Object.hasOwn(current, LEGACY_GENERATED_COMMENT_KEY))
+      changes.push([[LEGACY_GENERATED_COMMENT_KEY], undefined]);
+    updateJsonc(filePath, changes, SCHEMA_URL);
+    return;
+  }
   const { $schema: _stale, ...rest } = dashboard;
   const body = JSON.stringify({ $schema: SCHEMA_URL, ...rest }, null, 2);
 
