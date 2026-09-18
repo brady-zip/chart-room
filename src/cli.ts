@@ -179,6 +179,7 @@ program.hook("preAction", async (_root, command) => {
       provider === "datadog" &&
       name !== "validate" &&
       options.format !== "json" &&
+      !options.json &&
       !process.env.CHART_ROOM_NO_UPDATE
     )
       await checkForUpdates();

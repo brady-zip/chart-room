@@ -15,6 +15,7 @@ import { definition } from "./helpers.js";
 
 const cli = resolve("src/index.ts");
 const fake = resolve("tests/fixtures/fake-datadog.ts");
+const updaterStub = resolve("tests/fixtures/stub-updater.ts");
 let root: string;
 let env: NodeJS.ProcessEnv;
 const quote = (s: string) => `'${s.replaceAll("'", "'\\''")}'`;
@@ -125,6 +126,39 @@ test("Datadog init persists first ID before a second create fails", () => {
   expect(readObject(join(root, file)).zip_test_dashboard_id).toBeUndefined();
   expect(result.stderr).not.toContain("secret");
 });
+test("JSON status skips the updater while human status still checks", () => {
+  const file = dd("a dashboard.dash.jsonc");
+  const status = (args: string[]) =>
+    spawnSync(process.execPath, ["--preload", updaterStub, cli, ...args], {
+      cwd: root,
+      env: { ...env, CHART_ROOM_NO_UPDATE: "" },
+      encoding: "utf8",
+      timeout: 30_000,
+    });
+  const human = status(["status", file]);
+  expect(human.status).toBe(0);
+  expect(human.stdout).toContain("STUB_UPDATE_SUCCEEDED");
+  for (const args of [
+    ["status", file, "--json"],
+    ["status", "--json", file],
+    ["status", file, "--format", "json"],
+    ["--format=json", "status", file],
+    ["status", file, "--json", "--format=human"],
+  ]) {
+    const result = status(args);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("STUB_UPDATE_SUCCEEDED");
+    expect(JSON.parse(result.stdout)).toEqual({
+      provider: "datadog",
+      targets: {
+        prod: { outcome: "NOT_LINKED" },
+        test: { outcome: "NOT_LINKED" },
+      },
+    });
+  }
+  expect(calls()).toEqual([]);
+}, 30_000);
 test("Datadog init template, both-ID refusal, link prod/test and overwrite refusal stay available", () => {
   expect(run(["init", "new.dash.jsonc"]).status).toBe(0);
   const count = calls().length;

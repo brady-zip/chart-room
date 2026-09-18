@@ -35,21 +35,48 @@ const OPTIONS: Record<string, string[]> = {
   auth: ["--model"],
   omni: ["--model", "--topic", "--refresh"],
 };
+const VALUE_OPTIONS = new Set([
+  "--provider",
+  "--profile",
+  "--instance",
+  "--format",
+  "--model",
+  "--topic",
+  "--prod-folder",
+  "--test-folder",
+]);
 export function completionCandidates(
   words: string[],
   cwd = process.cwd(),
 ): string[] {
   const current = words.at(-1) || "";
-  const previous = words.at(-2) || "";
-  const before = words.slice(0, -1);
-  const value = (flag: string) => {
-    const at = before.indexOf(flag);
-    return at >= 0
-      ? before[at + 1]
-      : before.find((w) => w.startsWith(`${flag}=`))?.slice(flag.length + 1);
-  };
+  const values = new Map<string, string>();
+  let pending: string | undefined;
+  let command: string | undefined;
+  let endOptions = false;
+  for (const word of words.slice(0, -1)) {
+    if (pending) {
+      values.set(pending, word);
+      pending = undefined;
+    } else if (!endOptions && word === "--") endOptions = true;
+    else if (!endOptions && word.startsWith("-")) {
+      const equals = word.indexOf("=");
+      const flag = equals < 0 ? word : word.slice(0, equals);
+      if (VALUE_OPTIONS.has(flag)) {
+        if (equals < 0) pending = flag;
+        else values.set(flag, word.slice(equals + 1));
+      }
+    } else if (!command && COMMANDS.includes(word)) command = word;
+  }
+  const value = (flag: string) => values.get(flag);
   const provider = value("--provider");
-  const command = before.find((w) => COMMANDS.includes(w));
+  const equals = current.indexOf("=");
+  const inline =
+    !endOptions &&
+    !pending &&
+    equals >= 0 &&
+    VALUE_OPTIONS.has(current.slice(0, equals));
+  const previous = pending || (inline ? current.slice(0, equals) : "");
   let candidates: string[] = [];
   if (previous === "--provider") candidates = ["datadog", "omni"];
   else if (previous === "--format") candidates = ["human", "json"];
@@ -77,7 +104,7 @@ export function completionCandidates(
     }
   } else if (["--profile", "--prod-folder", "--test-folder"].includes(previous))
     candidates = [];
-  else if (current.startsWith("-"))
+  else if (!endOptions && current.startsWith("-"))
     candidates = [
       "--help",
       "--version",
@@ -134,6 +161,7 @@ export function completionCandidates(
     }
   }
   return [...new Set(candidates)]
+    .map((candidate) => (inline ? `${previous}=${candidate}` : candidate))
     .filter((c) => c.startsWith(current) && !/[\n\r\t]/.test(c))
     .sort();
 }

@@ -1,0 +1,55 @@
+{
+  "source": "Sanitized default shapes from the retained 2026-09-17 prod-before-test.json and created-prod.json acceptance readbacks; not a new live acceptance run.",
+  "query": {
+    "column_limit": 50,
+    "custom_summary_types": {},
+    "dbtMode": false,
+    "default_group_by": true,
+    "dimensionIndex": 0,
+    "join_via_map": {},
+    "limit": 1000,
+    "rewriteSql": true,
+    "version": 9
+  },
+  "blankPresentation": {
+    "type": "blank",
+    "name": "Notes",
+    "aiConfig": null,
+    "automaticVis": false,
+    "description": null,
+    "filterOrder": [],
+    "isSql": false,
+    "prefersChart": false,
+    "query": {
+      "calculations": [],
+      "column_limit": 50,
+      "column_totals": {},
+      "custom_summary_types": {},
+      "dbtMode": false,
+      "default_group_by": true,
+      "dimensionIndex": 0,
+      "fields": [],
+      "fill_fields": [],
+      "filters": {},
+      "join_via_map": {},
+      "limit": 1000,
+      "pivots": [],
+      "rewriteSql": true,
+      "row_totals": {},
+      "sorts": [],
+      "table": "",
+      "userEditedSQL": "",
+      "version": 9
+    },
+    "resultConfig": {},
+    "sourceQueryPresentationKey": null,
+    "subTitle": null,
+    "topicName": null,
+    "visConfig": {
+      "chartType": null,
+      "fields": [],
+      "version": 0,
+      "visConfig": { "config": {}, "visType": null }
+    }
+  }
+}

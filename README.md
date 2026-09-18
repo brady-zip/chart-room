@@ -2,7 +2,7 @@
 
 CLI for managing paired Datadog and Omni dashboards as code. Datadog keeps its existing `*.dash.jsonc` format and default commands. Omni uses a versioned `*.omni.jsonc` envelope, an existing shared model, and separate production and test documents.
 
-Version 1.10.0 implements Omni contract v1. Its live acceptance and release status are recorded separately in [the acceptance record](OMNI_ACCEPTANCE.md).
+Version 1.10.1 implements Omni contract v1. The [acceptance record](OMNI_ACCEPTANCE.md) describes the live 1.10.0 baseline; the 1.10.1 review fixes have local regression coverage.
 
 ## Workflow
 
@@ -201,7 +201,7 @@ Import reads v2 content, preserves stable record/layout keys, strips only known 
 
 ### Reconciliation and recovery
 
-Deployment rejects existing main drafts, including an unchanged deployment. A changed document is reconciled through a new native draft: upsert tiles in batches of at most 48, replace metadata/layout/settings and merge explicit control deletions, delete removed tiles in batches of at most 48, then set final order. Chart-room verifies the specific draft, checks that it is the sole non-stale main draft, publishes, and verifies published content. Readback permits server-added defaults while requiring every explicit desired value and exact tile/control key sets. A repeat apply reports `UNCHANGED` without writing.
+Deployment rejects existing main drafts, including an unchanged deployment. A changed document is reconciled through a new native draft: upsert tiles in batches of at most 48, replace metadata/layout/settings and merge explicit control deletions, delete removed tiles in batches of at most 48, then set final order. Chart-room verifies the specific draft, checks that it is the sole non-stale main draft, publishes, and verifies published content. Readback normalizes only known omitted server defaults, generated tab names, and read-only compiled SQL, then compares owned content exactly, including query filters, totals, visualization settings, and control mappings. Removed entries that survive a write fail verification. Explicit authored values remain authoritative; unrecognized server additions report drift. A repeat apply reports `UNCHANGED` without writing.
 
 Omni publication has no documented compare-and-swap token. Avoid concurrent UI edits to code-managed content. Draft conflicts, PR-required policies, rejected credentials, permission denial, missing targets, rate limits, malformed responses, and network/timeouts are separate structured errors. No ambiguous write is automatically retried or discarded.
 

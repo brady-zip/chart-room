@@ -212,6 +212,69 @@ test("bash, zsh and fish completion preserve a filename as one candidate", () =>
     }).stdout.trim(),
   ).toBe(candidate);
 });
+test("completion skips option values before and after commands", () => {
+  file("my dashboard.omni.jsonc", definition());
+  file("my dashboard.dash.jsonc", dd());
+  refreshCache(root);
+  expect(completionCandidates(["--provider=o"], root)).toEqual([
+    "--provider=omni",
+  ]);
+  expect(completionCandidates(["status", "--format=j"], root)).toEqual([
+    "--format=json",
+  ]);
+  expect(
+    completionCandidates(
+      ["--provider=omni", "test", "--provider", "datadog", "my"],
+      root,
+    ),
+  ).toEqual(["my dashboard.dash.jsonc"]);
+  for (const provider of ["omni", "datadog"]) {
+    const expected = `my dashboard.${provider === "omni" ? "omni" : "dash"}.jsonc`;
+    for (const options of [
+      ["--provider", provider, "--profile", "omni", "--instance", "test"],
+      [`--provider=${provider}`, "--profile=omni", "--instance=test"],
+    ]) {
+      for (const words of [
+        [...options, "test", "my"],
+        ["test", ...options, "my"],
+        [...options.slice(0, 2), "test", ...options.slice(2), "my"],
+      ])
+        expect(completionCandidates(words, root)).toEqual([expected]);
+      expect(
+        completionCandidates([...options, "status", "--"], root),
+      ).toContain("--json");
+      expect(completionCandidates(["prod", ...options, "--"], root)).toContain(
+        "--dry-run",
+      );
+      expect(completionCandidates([...options, ""], root)).toEqual(
+        [...COMMANDS].sort(),
+      );
+    }
+  }
+  // Values that happen to name a command are never commands themselves.
+  for (const flag of ["--profile", "--instance", "--model", "--topic"])
+    expect(completionCandidates([flag, "omni", "test", "my"], root)).toEqual([
+      "my dashboard.dash.jsonc",
+      "my dashboard.omni.jsonc",
+    ]);
+  for (const options of [
+    ["--provider", "omni", "--profile", "test"],
+    ["--provider=omni", "--profile=test"],
+  ]) {
+    expect(completionCandidates([...options, "omni", ""], root)).toEqual([
+      "fields",
+      "models",
+      "topics",
+    ]);
+    expect(completionCandidates(["omni", ...options, "f"], root)).toEqual([
+      "fields",
+    ]);
+    for (const subcommand of ["models", "topics", "fields"])
+      expect(
+        completionCandidates([...options, "omni", subcommand, "--"], root),
+      ).toContain("--refresh");
+  }
+});
 test("duplicate targets fail offline, and init with both IDs never creates", () => {
   const first = file("one.omni.jsonc", definition());
   expect(initializeOmni(first, {})).toMatchObject({

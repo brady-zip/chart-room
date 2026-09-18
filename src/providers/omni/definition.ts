@@ -233,51 +233,178 @@ export function patchBatches(
   return batches;
 }
 
-export function containsDesired(actual: unknown, desired: unknown): boolean {
+function sameContent(actual: unknown, desired: unknown): boolean {
   if (Array.isArray(desired))
     return (
       Array.isArray(actual) &&
       actual.length === desired.length &&
-      desired.every((v, i) => containsDesired(actual[i], v))
+      desired.every((v, i) => sameContent(actual[i], v))
     );
   if (desired !== null && typeof desired === "object")
     return (
       actual !== null &&
       typeof actual === "object" &&
       !Array.isArray(actual) &&
+      Object.keys(actual).length === Object.keys(desired).length &&
       Object.entries(desired).every(
         ([k, v]) =>
           Object.hasOwn(actual, k) &&
-          containsDesired((actual as NativeObject)[k], v),
+          sameContent((actual as NativeObject)[k], v),
       )
     );
   return actual === desired;
+}
+
+// Observed in the 2026-09-17 native acceptance readbacks. Only omitted fields
+// with these exact defaults are removable; explicit authored values still win.
+const QUERY_DEFAULTS: NativeObject = {
+  column_limit: 50,
+  custom_summary_types: {},
+  dbtMode: false,
+  default_group_by: true,
+  dimensionIndex: 0,
+  join_via_map: {},
+  limit: 1000,
+  rewriteSql: true,
+  version: 9,
+};
+const EMPTY_QUERY: NativeObject = {
+  ...QUERY_DEFAULTS,
+  calculations: [],
+  column_totals: {},
+  fields: [],
+  fill_fields: [],
+  filters: {},
+  pivots: [],
+  row_totals: {},
+  sorts: [],
+  table: "",
+  userEditedSQL: "",
+};
+const EMPTY_VIS_CONFIG: NativeObject = {
+  chartType: null,
+  fields: [],
+  version: 0,
+  visConfig: { config: {}, visType: null },
+};
+const PRESENTATION_DEFAULTS: NativeObject = {
+  aiConfig: null,
+  automaticVis: null,
+  description: null,
+  filterOrder: [],
+  isSql: null,
+  prefersChart: false,
+  query: null,
+  resultConfig: {},
+  sourceQueryPresentationKey: null,
+  subTitle: null,
+  topicName: null,
+  visConfig: null,
+};
+
+function isRecord(value: unknown): value is NativeObject {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function withoutDefaults(
+  actual: NativeObject,
+  desired: NativeObject,
+  defaults: NativeObject,
+): NativeObject {
+  return Object.fromEntries(
+    Object.entries(actual).filter(
+      ([key, value]) =>
+        Object.hasOwn(desired, key) ||
+        !Object.hasOwn(defaults, key) ||
+        !sameContent(value, defaults[key]),
+    ),
+  );
+}
+
+function normalizePresentation(
+  actual: NativeObject,
+  desired: NativeObject,
+): NativeObject {
+  let result = withoutDefaults(actual, desired, PRESENTATION_DEFAULTS);
+  result = withoutDefaults(result, desired, {
+    automaticVis: false,
+    isSql: false,
+    visConfig: EMPTY_VIS_CONFIG,
+    ...(actual.type === "blank" ? { query: EMPTY_QUERY } : {}),
+  });
+  // Names can be generated when omitted; the pinned read schema requires one.
+  if (!Object.hasOwn(desired, "name")) delete result.name;
+  if (isRecord(result.query) && isRecord(desired.query)) {
+    result.query = withoutDefaults(result.query, desired.query, QUERY_DEFAULTS);
+    // Pinned OpenAPI marks compiled SQL read-only. Query model bindings are not
+    // stripped: they denote unsupported resources rather than harmless defaults.
+    if (!Object.hasOwn(desired.query, "executableSQL"))
+      delete (result.query as NativeObject).executableSQL;
+  }
+  if (isRecord(result.visConfig) && isRecord(desired.visConfig)) {
+    const vis = withoutDefaults(
+      result.visConfig,
+      desired.visConfig,
+      EMPTY_VIS_CONFIG,
+    );
+    if (isRecord(vis.visConfig) && isRecord(desired.visConfig.visConfig))
+      vis.visConfig = withoutDefaults(
+        vis.visConfig,
+        desired.visConfig.visConfig,
+        { config: {}, visType: null },
+      );
+    result.visConfig = vis;
+  }
+  return result;
+}
+
+function normalizeContainer(
+  actual: NativeObject,
+  desired: NativeObject,
+): NativeObject {
+  return withoutDefaults(
+    actual,
+    desired,
+    actual.containerType === "page" ? { children: [] } : {},
+  );
+}
+
+function normalizeReadback(
+  actual: OmniDocument,
+  desired: OmniDocument,
+): OmniDocument {
+  return {
+    ...actual,
+    queryPresentations: {
+      ...actual.queryPresentations,
+      data: Object.fromEntries(
+        Object.entries(actual.queryPresentations.data).map(([key, tile]) => [
+          key,
+          Object.hasOwn(desired.queryPresentations.data, key)
+            ? normalizePresentation(tile, desired.queryPresentations.data[key])
+            : tile,
+        ]),
+      ),
+    },
+    containers: actual.containers.map((container, i) =>
+      desired.containers[i]
+        ? normalizeContainer(container, desired.containers[i])
+        : container,
+    ),
+  };
 }
 
 export function matchesDocument(
   actual: OmniDocument,
   desired: OmniDocument,
 ): boolean {
-  return (
-    containsDesired(actual, desired) &&
-    ["queryPresentations", "controls"].every((name) => {
-      const a = actual[name as "controls"].data;
-      const d = desired[name as "controls"].data;
-      return (
-        Object.keys(a).length === Object.keys(d).length &&
-        Object.keys(d).every((k) => Object.hasOwn(a, k))
-      );
-    })
-  );
+  return drift(actual, desired).length === 0;
 }
 
 export function drift(actual: OmniDocument, desired: OmniDocument): string[] {
+  const normalized = normalizeReadback(actual, desired);
   return DOCUMENT_FIELDS.filter(
-    (key) =>
-      !containsDesired(actual[key], desired[key]) ||
-      ((key === "controls" || key === "queryPresentations") &&
-        Object.keys(actual[key].data).length !==
-          Object.keys(desired[key].data).length),
+    (key) => !sameContent(normalized[key], desired[key]),
   );
 }
 

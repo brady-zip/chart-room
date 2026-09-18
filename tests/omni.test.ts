@@ -14,7 +14,6 @@ import {
 } from "./helpers.js";
 import {
   adoptDocument,
-  containsDesired,
   desiredDocument,
   drift,
   matchesDocument,
@@ -262,12 +261,14 @@ test("readback allows server defaults but requires exact owned keys and order", 
   const desired = definition().document;
   const actual = remote(desired) as unknown as OmniDocument;
   expect(matchesDocument(actual, desired)).toBe(true);
+  actual.settings.crossfilterEnabled = 0;
+  expect(drift(actual, desired)).toEqual(["settings"]);
+  actual.settings.crossfilterEnabled = desired.settings.crossfilterEnabled;
   actual.queryPresentations.data["2"] = { type: "blank" };
   expect(matchesDocument(actual, desired)).toBe(false);
   delete actual.queryPresentations.data["2"];
   actual.controls.data.stale = { config: {} };
   expect(matchesDocument(actual, desired)).toBe(false);
-  expect(containsDesired(true, 1)).toBe(false);
   expect(drift(actual, desired)).toEqual(["controls"]);
 });
 
