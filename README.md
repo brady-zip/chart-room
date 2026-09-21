@@ -2,7 +2,7 @@
 
 CLI for managing paired Datadog and Omni dashboards as code. Datadog keeps its existing `*.dash.jsonc` format and default commands. Omni uses a versioned `*.omni.jsonc` envelope, an existing shared model, and separate production and test documents.
 
-Version 1.10.1 implements Omni contract v1. The [acceptance record](OMNI_ACCEPTANCE.md) describes the live 1.10.0 baseline; the 1.10.1 review fixes have local regression coverage.
+Version 1.10.2 implements Omni contract v1. The [acceptance record](OMNI_ACCEPTANCE.md) describes the live 1.10.0 baseline; the 1.10.1 comparison fixes and 1.10.2 automatic visualization normalization have regression coverage.
 
 ## Workflow
 
@@ -189,7 +189,7 @@ Omni uses native Documents v2 payloads, without translating Datadog widgets. `do
 
 All tile/control keys, their order, the layout, and all five settings are owned by the file. Preserve numeric tile record keys and container `instanceKey` values across edits. Remove a key locally to delete it remotely; do not write null deletion tombstones. Supported tiles are `blank`, `query`, `sql`, and `linked`, with the official schema's native visualization configuration. Query plans are checked only with `validate --remote`; query results and browser rendering require separate acceptance.
 
-Use a native `page` container wrapping the visible grid or stack. Top-level stacks can be stored without being displayed as a page. The acceptance instance normalizes explicit `automaticVis: false` to `true`; strict readback rejects that mismatch rather than reporting success. Author the supported value and verify the native `visConfig` in the browser.
+Use a native `page` container wrapping the visible grid or stack. Top-level stacks can be stored without being displayed as a page. The acceptance instance normalizes explicit `automaticVis: false` to `true`; strict readback rejects that mismatch rather than reporting success. Omit `automaticVis` to let Omni select it; 1.10.2 ignores the server-selected value only when the source omits it. Explicit authored values still require an exact match. Verify the native `visConfig` in the browser.
 
 ```bash
 chart-room import PRODUCTION_IDENTIFIER "dashboards/adopted.omni.jsonc" \

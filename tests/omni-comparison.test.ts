@@ -149,6 +149,22 @@ test("observed Omni defaults normalize without hiding authored values or new rem
   expect(drift(actual, desired)).toEqual(["queryPresentations"]);
 });
 
+test("server-chosen automaticVis does not fail verification when unauthored", () => {
+  // Omni sets automaticVis: true on tiles whose visualization it selects, so a
+  // tile that never wrote the field cannot predict its readback value.
+  const queryValue = queryDefinition();
+  const withDefaults = observed(queryValue.document);
+  Object.assign(tileQuery(withDefaults), defaults.query, {
+    executableSQL: "select count(*) from events",
+  });
+  withDefaults.queryPresentations.data["1"].automaticVis = true;
+  expect(drift(withDefaults, queryValue.document)).toEqual([]);
+  expect(matchesDocument(withDefaults, queryValue.document)).toBe(true);
+  // An explicitly authored value is still compared against the readback.
+  queryValue.document.queryPresentations.data["1"].automaticVis = false;
+  expect(matchesDocument(withDefaults, queryValue.document)).toBe(false);
+});
+
 test("blank-query defaults cannot hide remote filters or authored nulls", () => {
   const desired = definition().document;
   const actual = observed(desired);

@@ -334,6 +334,10 @@ function normalizePresentation(
   });
   // Names can be generated when omitted; the pinned read schema requires one.
   if (!Object.hasOwn(desired, "name")) delete result.name;
+  // Omni derives automaticVis from the visualization it selects, so a tile
+  // that omits it cannot predict the readback value. An authored value is
+  // still compared.
+  if (!Object.hasOwn(desired, "automaticVis")) delete result.automaticVis;
   if (isRecord(result.query) && isRecord(desired.query)) {
     result.query = withoutDefaults(result.query, desired.query, QUERY_DEFAULTS);
     // Pinned OpenAPI marks compiled SQL read-only. Query model bindings are not
